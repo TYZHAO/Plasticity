@@ -231,7 +231,8 @@ def resnet_layer(inputs, scope_name, filters=16, kernel_size=3, strides=1,
         #if kernel_size > 1:
             #hebb_new = hebb_new - tf.reduce_mean(hebb_new, axis = [0,1])
             #hebb_new = hebb_standardization(w, hebb_new)
-        hebb_ = tf.assign(hebb_update, hebb_new/tf.cast(y.shape[0] * y.shape[1] * y.shape[3], tf.float32))
+        shape = tf.shape(y)
+        hebb_ = tf.assign(hebb_update, hebb_new/tf.cast(shape[0] * shape[1] * shape[2], tf.float32))
 
         update_ops.append(hebb_)        
 

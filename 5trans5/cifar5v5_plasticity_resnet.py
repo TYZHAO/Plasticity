@@ -19,9 +19,10 @@ import sys
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
+# data path
 cifar10_path = '/scratch/tz1303/divided_cifar10_data'
+# model save path
 model_root = '/scratch/tz1303/ckpts_5v5_plas_train_on_1'
-
 
 num_res_blocks = 3
 
@@ -47,6 +48,7 @@ def unpickle(file):
     return dict
 
 def fetch_data(fetch, datainput):
+    # fetch part of data for train/evaluation
     data = datainput[0]
     label = datainput[1]
     
@@ -139,7 +141,7 @@ def val_preprocessing(img, lbl):
     return img, lbl
 
 def hebb_standardization(w, hebb):
-    
+
     hebb_reduce_mean = hebb - tf.reduce_mean(hebb, axis = [0,1])
     stddev = tf.sqrt(tf.reduce_sum(tf.square(hebb_reduce_mean), axis=[0,1]))
     minstddev = 1/tf.multiply(hebb.shape[0], hebb.shape[1])
@@ -230,7 +232,10 @@ def resnet_layer(inputs, scope_name, filters=16, kernel_size=3, strides=1,
         if kernel_size > 1:
             hebb_new = hebb_new - tf.reduce_mean(hebb_new, axis = [0,1])
             #hebb_new = hebb_standardization(w, hebb_new)
-        hebb_ = tf.assign(hebb_update, hebb_new/tf.cast(y.shape[0] * y.shape[1] * y.shape[3], tf.float32))
+        shape = tf.shape(y)
+        hebb_ = tf.assign(hebb_update, hebb_new/tf.cast(shape[0] * shape[1] * shape[2], tf.float32))
+        #hebb_ = tf.assign(hebb_update, hebb_new)
+
 
         update_ops.append(hebb_)        
 
