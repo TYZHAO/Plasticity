@@ -29,7 +29,7 @@ def resnet_layer(inputs, scope_name, update_ops, filters=16, kernel_size=3, stri
         #inp = tf.get_variable('inputs', inputs.shape[1:],trainable = False)
         #update_inputs = tf.assign(inp, inputs[0])
         #update_ops.append(update_inputs)
-        inputs = tf.identity(inputs, 'inputs')
+        #inputs = tf.identity(inputs, 'inputs')
 
         new_hebb = eta * hebb_update  + (1 - eta) * hebb        
 

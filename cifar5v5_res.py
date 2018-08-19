@@ -66,7 +66,10 @@ def train_layers(min_stack=0, first_min_block=0):
         var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'pretrain/first'))
     for scope in train_scope:
         var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope))
+    var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'classifier'))
     train_var = [item for sublist in var for item in sublist]
+    for item in train_var:
+        tf.logging.info(item)
     return train_var
 
 def trainable_var():
@@ -160,7 +163,7 @@ def inference(transfer):
                 if steps % 10 == 0:
                     tf.logging.info('epoch:'+str(epoch_num)+' step:'+str(steps)+' learning rate:'+str(learning_rate))
                     tf.logging.info('loss:'+str(lossvalue)+' batch accuracy:'+str(accuracy))
-                if steps % 250 == 0:
+                if steps % FLAGS.eval_step == 0:
                     saver.save(sess, model_name, global_step = steps)                    
                     evalutation(sess, val_iterator, correct_prediction, handle, val_handle)
                     
@@ -210,6 +213,11 @@ if __name__ == '__main__':
         type=int,
         default='2')    
 
+    parser.add_argument(
+        '--eval_step',
+        type=int,
+        default='500')    
+
     FLAGS, unparsed = parser.parse_known_args()
     tf.logging.info('plasticity: False')
     tf.logging.info('mode: '+str(FLAGS.mode))
@@ -217,7 +225,8 @@ if __name__ == '__main__':
     tf.logging.info('use train: '+str(FLAGS.use_train))
     tf.logging.info('from stack: '+str(FLAGS.from_stack))
     tf.logging.info('model save dir: '+str(FLAGS.save_dir))
-
+    tf.logging.info('eval step: '+str(FLAGS.eval_step))
+    
     if FLAGS.mode == 'transfer':
         transfer = True
     elif FLAGS.mode == 'pretrain':

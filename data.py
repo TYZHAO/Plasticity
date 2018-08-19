@@ -105,9 +105,9 @@ def train_preprocessing(img, lbl):
     img = tf.cast(img, tf.float32)
     lbl = tf.cast(lbl, tf.uint8)
 
-    img = tf.image.resize_image_with_crop_or_pad(
-    img, 32 + 8, 32 + 8)
-    img = tf.random_crop(img, [32, 32, 3])
+    #img = tf.image.resize_image_with_crop_or_pad(
+    #img, 32 + 8, 32 + 8)
+    #img = tf.random_crop(img, [32, 32, 3])
 
     img = tf.image.random_flip_left_right(img)
 
