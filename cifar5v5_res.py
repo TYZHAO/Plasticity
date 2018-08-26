@@ -164,7 +164,8 @@ def inference(transfer):
                     tf.logging.info('epoch:'+str(epoch_num)+' step:'+str(steps)+' learning rate:'+str(learning_rate))
                     tf.logging.info('loss:'+str(lossvalue)+' batch accuracy:'+str(accuracy))
                 if steps % FLAGS.eval_step == 0:
-                    saver.save(sess, model_name, global_step = steps)                    
+                    if not transfer:
+                        saver.save(sess, model_name, global_step = steps)
                     evalutation(sess, val_iterator, correct_prediction, handle, val_handle)
                     
             except tf.errors.OutOfRangeError:

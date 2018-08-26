@@ -22,7 +22,13 @@ tf.logging.set_verbosity(tf.logging.INFO)
 cifar10_path = '/scratch/tz1303/divided_cifar10_data'
 model_root = '/scratch/tz1303/ckpts_5v5_plas'
 
-pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534608535/pre_plas_res20-9500' 
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534905992/pre_plas_res20-7500' 
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534950884/trans_plas_res20-1800'
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534971640/pre_plas_res20-7500'
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534982030/pre_plas_res20-8000'
+
+# limited(conv+fc) plas resnet
+pretrained_model = ''
 
 num_res_blocks = 3
 
@@ -42,7 +48,7 @@ def make_model_dir():
         model_dir = os.path.join(model_root, FLAGS.save_dir)
     else:
         timestamp = calendar.timegm(time.gmtime())
-        model_dir = os.path.join(model_root, str(timestamp))        
+        model_dir = os.path.join(model_root, str(timestamp))
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     tf.logging.info(model_dir)
@@ -54,19 +60,43 @@ def train_layers(min_stack=0, first_min_block=0):
     min_block = first_min_block
     for stack in range(min_stack, 3):
         for res_block in range(min_block, num_res_blocks):
-            train_scope.append("pretrain/{}_{}_one/".format(stack, res_block))
+            train_scope.append("feature_extractor/{}_{}_one/".format(stack, res_block))
 
-            train_scope.append("pretrain/{}_{}_two/".format(stack, res_block))
+            train_scope.append("feature_extractor/{}_{}_two/".format(stack, res_block))
             if stack>0 and res_block == 0:
-                train_scope.append("pretrain/{}_{}_three/".format(stack, res_block))
+                train_scope.append("feature_extractor/{}_{}_three/".format(stack, res_block))
         min_block = 0      
 
     var = []
     if min_stack == 0:
-        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'pretrain/first'))
+        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'feature_extractor/first'))
     for scope in train_scope:
         var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope))
     var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'classifier'))
+    train_var = [item for sublist in var for item in sublist]
+    for item in train_var:
+        tf.logging.info(item)
+
+    return train_var
+
+def load_layers(min_stack=0, first_min_block=0):
+    train_scope = []
+    
+    min_block = first_min_block
+    for stack in range(0, min_stack):
+        for res_block in range(min_block, num_res_blocks):
+            train_scope.append("feature_extractor/{}_{}_one/".format(stack, res_block))
+
+            train_scope.append("feature_extractor/{}_{}_two/".format(stack, res_block))
+            if stack>0 and res_block == 0:
+                train_scope.append("feature_extractor/{}_{}_three/".format(stack, res_block))
+        min_block = 0      
+
+    var = []
+    if min_stack > 0:
+        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'feature_extractor/first'))
+    for scope in train_scope:
+        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope))
     train_var = [item for sublist in var for item in sublist]
     for item in train_var:
         tf.logging.info(item)
@@ -112,7 +142,7 @@ def inference(transfer):
     epoch = tf.ceil(global_step*batchsize/FLAGS.use_train)
     epoch = tf.identity(epoch, name='epoch')
     #-------------------------------------------------------------------------------------#
-    logits, update_ops = plas_resnet.resnet_model(features, 'pretrain', num_res_blocks, classcount)
+    logits, update_ops = plas_resnet.resnet_model(features, 'feature_extractor', num_res_blocks, classcount)
     logits = tf.identity(logits, 'logits')
     onehot_labels = tf.one_hot(tf.cast(labels, tf.int32), classcount)
     #-------------------------------------------------------------------------------------%
@@ -127,7 +157,7 @@ def inference(transfer):
     
     # transfer
     if transfer:
-        train_var = train_layers(FLAGS.from_stack,0)        
+        train_var = train_layers(FLAGS.from_stack, 0)
         train_op = optimizer.minimize(loss=loss, global_step=global_step, var_list=train_var)
         model_name = model_dir+'/trans_plas_res'+str(6*num_res_blocks+2)
     # pretrain
@@ -145,11 +175,13 @@ def inference(transfer):
     with tf.Session() as sess:
         sess.run(init_op)
     #-------------------------------------------------------------------------------------#
-        var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='pretrain/')
-        saver = tf.train.Saver(max_to_keep=5, var_list=var_list)
+        saver = tf.train.Saver(max_to_keep=5)
         if transfer:
+            restore_var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='feature_extractor/')
+            #var_list = load_layers(FLAGS.from_stack, 0)
+            restorer = tf.train.Saver(var_list=restore_var_list)
             #util.init_from_checkpoint(pretrained_model, {'feature_extractor/':'transfer/'})
-            saver.restore(sess, pretrained_model)
+            restorer.restore(sess, pretrained_model)
     #-------------------------------------------------------------------------------------%
         train_handle = sess.run(train_iterator.string_handle())
         val_handle = sess.run(val_iterator.string_handle())
@@ -165,7 +197,8 @@ def inference(transfer):
                     tf.logging.info('epoch:'+str(epoch_num)+' step:'+str(steps)+' learning rate:'+str(learning_rate))
                     tf.logging.info('loss:'+str(lossvalue)+' batch accuracy:'+str(accuracy))
                 if steps % FLAGS.eval_step == 0:
-                    saver.save(sess, model_name, global_step = steps)                    
+                    if not transfer:
+                        saver.save(sess, model_name, global_step = steps)                    
                     evalutation(sess, val_iterator, correct_prediction, handle, val_handle)
                     
             except tf.errors.OutOfRangeError:
@@ -217,7 +250,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--eval_step',
         type=int,
-        default='500')    
+        default='500')
 
     FLAGS, unparsed = parser.parse_known_args()
     tf.logging.info('plasticity: True')
