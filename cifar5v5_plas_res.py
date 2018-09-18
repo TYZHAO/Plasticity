@@ -29,6 +29,7 @@ model_root = '/scratch/tz1303/ckpts_5v5_plas'
 
 # limited(conv+fc) plas resnet
 # pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1535559419/pre_plas_res20-8500'
+pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1537256622/pre_plas_res20-8500'
 
 num_res_blocks = 3
 
