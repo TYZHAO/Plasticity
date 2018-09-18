@@ -28,11 +28,11 @@ model_root = '/scratch/tz1303/ckpts_5v5_plas'
 #pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534982030/pre_plas_res20-8000'
 
 # limited(conv+fc) plas resnet
-pretrained_model = ''
+# pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1535559419/pre_plas_res20-8500'
 
 num_res_blocks = 3
 
-batchsize = 256 
+#batchsize = 32
 maxepochs = 100
 
 _HEIGHT = 32 
@@ -74,6 +74,7 @@ def train_layers(min_stack=0, first_min_block=0):
         var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope))
     var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'classifier'))
     train_var = [item for sublist in var for item in sublist]
+    tf.logging.info('----train variables----')
     for item in train_var:
         tf.logging.info(item)
 
@@ -124,11 +125,11 @@ def inference(transfer):
 
     #-------------------------------------------------------------------------------------#
     train_dataset = data.train_input_fn(classcount=classcount, use_train=FLAGS.use_train, datapath=cifar10_path,
-                                        dataset=FLAGS.dataset, batchsize=batchsize, maxepochs=maxepochs)
+                                        dataset=FLAGS.dataset, batchsize=FLAGS.batchsize, maxepochs=maxepochs)
     train_iterator = train_dataset.make_one_shot_iterator()
 
     val_dataset = data.val_input_fn(classcount=classcount, use_val=use_val, datapath=cifar10_path,
-                                    dataset=FLAGS.dataset, batchsize=batchsize, maxepochs=maxepochs)
+                                    dataset=FLAGS.dataset, batchsize=FLAGS.batchsize, maxepochs=maxepochs)
     val_iterator = val_dataset.make_initializable_iterator()
     #-------------------------------------------------------------------------------------%
 
@@ -139,12 +140,12 @@ def inference(transfer):
     
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.zeros_initializer)
     
-    epoch = tf.ceil(global_step*batchsize/FLAGS.use_train)
+    epoch = tf.ceil(global_step*FLAGS.batchsize/FLAGS.use_train)
     epoch = tf.identity(epoch, name='epoch')
     #-------------------------------------------------------------------------------------#
-    logits, update_ops = plas_resnet.resnet_model(features, 'feature_extractor', num_res_blocks, classcount)
-    logits = tf.identity(logits, 'logits')
     onehot_labels = tf.one_hot(tf.cast(labels, tf.int32), classcount)
+    logits, update_ops = plas_resnet.resnet_model(features, onehot_labels, 'feature_extractor', num_res_blocks, classcount)
+    logits = tf.identity(logits, 'logits')
     #-------------------------------------------------------------------------------------%
     loss = tf.nn.softmax_cross_entropy_with_logits(labels=onehot_labels, logits=logits)
     loss = tf.reduce_mean(loss)
@@ -177,7 +178,13 @@ def inference(transfer):
     #-------------------------------------------------------------------------------------#
         saver = tf.train.Saver(max_to_keep=5)
         if transfer:
-            restore_var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='feature_extractor/')
+            restore_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='feature_extractor/')
+            #restore_var_list.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='classifier/hebb')[0])
+            restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/eta')[0])
+            restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/alpha')[0])
+            tf.logging.info('----load variables----')
+            for item in restore_var_list:
+                tf.logging.info(item)
             #var_list = load_layers(FLAGS.from_stack, 0)
             restorer = tf.train.Saver(var_list=restore_var_list)
             #util.init_from_checkpoint(pretrained_model, {'feature_extractor/':'transfer/'})
@@ -198,7 +205,7 @@ def inference(transfer):
                     tf.logging.info('loss:'+str(lossvalue)+' batch accuracy:'+str(accuracy))
                 if steps % FLAGS.eval_step == 0:
                     if not transfer:
-                        saver.save(sess, model_name, global_step = steps)                    
+                        saver.save(sess, model_name, global_step = steps)
                     evalutation(sess, val_iterator, correct_prediction, handle, val_handle)
                     
             except tf.errors.OutOfRangeError:
@@ -252,6 +259,11 @@ if __name__ == '__main__':
         type=int,
         default='500')
 
+    parser.add_argument(
+        '--batchsize',
+        type=int,
+        default='256')
+
     FLAGS, unparsed = parser.parse_known_args()
     tf.logging.info('plasticity: True')
     tf.logging.info('mode: '+str(FLAGS.mode))
@@ -260,6 +272,7 @@ if __name__ == '__main__':
     tf.logging.info('from stack: '+str(FLAGS.from_stack))
     tf.logging.info('model save dir: '+str(FLAGS.save_dir))
     tf.logging.info('eval step: '+str(FLAGS.eval_step))
+    tf.logging.info('batch size: '+str(FLAGS.batchsize))
 
     if FLAGS.mode == 'transfer':
         transfer = True
