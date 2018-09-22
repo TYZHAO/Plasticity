@@ -161,7 +161,7 @@ def resnet_model(features, onehot_labels, scope, num_res_blocks, classcount):
         hebb = tf.get_variable('hebb', (int(x.shape[1]), classcount), trainable=False,
                                              initializer=tf.zeros_initializer)        
         b = tf.get_variable('b',(classcount,),initializer=tf.contrib.layers.xavier_initializer())
-        eta = tf.get_variable('eta', (), initializer=tf.constant_initializer(.05))
+        eta = tf.get_variable('eta', (), initializer=tf.constant_initializer(.01))
         hebb_update = tf.get_variable('hebb_update', (int(x.shape[1]), classcount), trainable=False,                                      
                                              initializer=tf.zeros_initializer) 
         
@@ -175,7 +175,7 @@ def resnet_model(features, onehot_labels, scope, num_res_blocks, classcount):
 
         shapex = tf.cast(tf.shape(x), tf.float32)
         limitedx = tf.sign(x)*tf.maximum(tf.abs(x)-1,0)
-        hebb_new = tf.reduce_mean(tf.matmul(tf.expand_dims(limitedx, axis=-1),tf.expand_dims(onehot_labels, axis=1)), axis=0)
+        hebb_new = tf.reduce_mean(tf.matmul(tf.expand_dims(limitedx, axis=-1),tf.expand_dims(onehot_labels*y, axis=1)), axis=0)
         hebb_reduce = tf.matmul(tf.matmul(hebb, tf.transpose(onehot_labels,[1,0])),onehot_labels)/shapex[0]
         
         hebb_ = tf.assign(hebb_update, hebb_new - hebb_reduce)

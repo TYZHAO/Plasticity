@@ -182,7 +182,7 @@ def inference(transfer):
             restore_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='feature_extractor/')
             #restore_var_list.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='classifier/hebb')[0])
             restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/eta')[0])
-            restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/alpha')[0])
+            #restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/alpha')[0])
             tf.logging.info('----load variables----')
             for item in restore_var_list:
                 tf.logging.info(item)
