@@ -176,7 +176,7 @@ def resnet_model(features, onehot_labels, scope, num_res_blocks, classcount):
         shapex = tf.cast(tf.shape(x), tf.float32)
         limitedx = tf.sign(x)*tf.maximum(tf.abs(x)-1,0)
         hebb_new = tf.reduce_mean(tf.matmul(tf.expand_dims(limitedx, axis=-1),tf.expand_dims(onehot_labels*y, axis=1)), axis=0)
-        hebb_reduce = tf.matmul(tf.matmul(hebb, tf.transpose(onehot_labels,[1,0])),onehot_labels)/shapex[0]
+        hebb_reduce = tf.matmul(tf.matmul(hebb, tf.transpose(onehot_labels*y,[1,0])), onehot_labels*y)/shapex[0]
         
         hebb_ = tf.assign(hebb_update, hebb_new - hebb_reduce)
         
