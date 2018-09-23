@@ -177,7 +177,7 @@ def resnet_model(features, onehot_labels, scope, num_res_blocks, classcount):
         limitedx = tf.sign(x)*tf.maximum(tf.abs(x)-1,0)
         clamped_output = onehot_labels*tf.nn.softmax(y)
         tf.identity(clamped_output, 'co')
-        hebb_new = tf.reduce_mean(tf.matmul(tf.expand_dims(limitedx, axis=-1),tf.expand_dims(onehot_labels, axis=1)), axis=0)
+        hebb_new = tf.reduce_mean(tf.matmul(tf.expand_dims(limitedx, axis=-1),tf.expand_dims(clamped_output, axis=1)), axis=0)
         hebb_reduce = tf.matmul(tf.matmul(hebb, tf.transpose(onehot_labels,[1,0])), onehot_labels)/shapex[0]
         
         hebb_ = tf.assign(hebb_update, hebb_new - hebb_reduce)
