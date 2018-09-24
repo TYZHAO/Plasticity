@@ -28,8 +28,7 @@ model_root = '/scratch/tz1303/ckpts_5v5_plas'
 #pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534982030/pre_plas_res20-8000'
 
 # limited(conv+fc) plas resnet
-# pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1535559419/pre_plas_res20-8500'
-pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1537256622/pre_plas_res20-8500'
+pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1537690086/pre_plas_res20-7500'
 
 num_res_blocks = 3
 
@@ -181,7 +180,7 @@ def inference(transfer):
         if transfer:
             restore_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='feature_extractor/')
             #restore_var_list.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='classifier/hebb')[0])
-            restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/eta')[0])
+            #restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/eta')[0])
             #restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/alpha')[0])
             tf.logging.info('----load variables----')
             for item in restore_var_list:
