@@ -22,7 +22,14 @@ tf.logging.set_verbosity(tf.logging.INFO)
 cifar10_path = '/scratch/tz1303/divided_cifar10_data'
 model_root = '/scratch/tz1303/ckpts_5v5_plas'
 
-pretrained_model = '/scratch/tz1303/ckpts_5v5_nonplas/1534608208/pre_res20-9000'
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534905992/pre_plas_res20-7500' 
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534950884/trans_plas_res20-1800'
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534971640/pre_plas_res20-7500'
+#pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1534982030/pre_plas_res20-8000'
+
+# limited(conv+fc) plas resnet
+# pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1535559419/pre_plas_res20-8500'
+pretrained_model = '/scratch/tz1303/ckpts_5v5_plas/1537690086/pre_plas_res20-7500'
 
 num_res_blocks = 3
 
@@ -54,16 +61,16 @@ def train_layers(min_stack=0, first_min_block=0):
     min_block = first_min_block
     for stack in range(min_stack, 3):
         for res_block in range(min_block, num_res_blocks):
-            train_scope.append("pretrain/{}_{}_one/".format(stack, res_block))
+            train_scope.append("feature_extractor/{}_{}_one/".format(stack, res_block))
 
-            train_scope.append("pretrain/{}_{}_two/".format(stack, res_block))
+            train_scope.append("feature_extractor/{}_{}_two/".format(stack, res_block))
             if stack>0 and res_block == 0:
-                train_scope.append("pretrain/{}_{}_three/".format(stack, res_block))
+                train_scope.append("feature_extractor/{}_{}_three/".format(stack, res_block))
         min_block = 0      
 
     var = []
     if min_stack == 0:
-        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'pretrain/first'))
+        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'feature_extractor/first'))
     for scope in train_scope:
         var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope))
     var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'classifier'))
@@ -80,16 +87,16 @@ def load_layers(min_stack=0, first_min_block=0):
     min_block = first_min_block
     for stack in range(0, min_stack):
         for res_block in range(min_block, num_res_blocks):
-            train_scope.append("pretrain/{}_{}_one/".format(stack, res_block))
+            train_scope.append("feature_extractor/{}_{}_one/".format(stack, res_block))
 
-            train_scope.append("pretrain/{}_{}_two/".format(stack, res_block))
+            train_scope.append("feature_extractor/{}_{}_two/".format(stack, res_block))
             if stack>0 and res_block == 0:
-                train_scope.append("pretrain/{}_{}_three/".format(stack, res_block))
+                train_scope.append("feature_extractor/{}_{}_three/".format(stack, res_block))
         min_block = 0      
 
     var = []
     if min_stack > 0:
-        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'pretrain/first'))
+        var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'feature_extractor/first'))
     for scope in train_scope:
         var.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope))
     train_var = [item for sublist in var for item in sublist]
@@ -138,7 +145,7 @@ def inference(transfer):
     epoch = tf.identity(epoch, name='epoch')
     #-------------------------------------------------------------------------------------#
     onehot_labels = tf.one_hot(tf.cast(labels, tf.int32), classcount)
-    logits, update_ops = plas_resnet.resnet_model(features, onehot_labels, 'pretrain', num_res_blocks, classcount)
+    logits, update_ops = plas_resnet.resnet_model(features, onehot_labels, 'feature_extractor', num_res_blocks, classcount)
     logits = tf.identity(logits, 'logits')
     #-------------------------------------------------------------------------------------%
     loss = tf.nn.softmax_cross_entropy_with_logits(labels=onehot_labels, logits=logits)
@@ -172,7 +179,7 @@ def inference(transfer):
     #-------------------------------------------------------------------------------------#
         saver = tf.train.Saver(max_to_keep=5)
         if transfer:
-            restore_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='pretrain/')
+            restore_var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='feature_extractor/')
             #restore_var_list.append(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='classifier/hebb')[0])
             #restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/eta')[0])
             #restore_var_list.append(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='classifier/alpha')[0])
@@ -181,7 +188,7 @@ def inference(transfer):
                 tf.logging.info(item)
             #var_list = load_layers(FLAGS.from_stack, 0)
             restorer = tf.train.Saver(var_list=restore_var_list)
-            #util.init_from_checkpoint(pretrained_model, {'pretrain/':'transfer/'})
+            #util.init_from_checkpoint(pretrained_model, {'feature_extractor/':'transfer/'})
             restorer.restore(sess, pretrained_model)
     #-------------------------------------------------------------------------------------%
         train_handle = sess.run(train_iterator.string_handle())
