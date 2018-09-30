@@ -108,3 +108,6 @@ def train():
 
             except tf.errors.OutOfRangeError:
                 break
+
+if __name__ == '__main__':
+    train()
