@@ -62,7 +62,7 @@ def model(x, num_hidden=512):
 '''
 def train():
     tf.reset_default_graph()
-    file_name = '/archive/t/tz1303/train_list.txt'
+    file_name = '/beegfs/tz1303/train_list.txt'
     train_img = []
     for line in open(file_name):
         line = line.split()
