@@ -78,6 +78,7 @@ def train():
     get_data = iterator.get_next()
 
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.zeros_initializer)
+    global_step_update = tf.assign(global_step, global_step+1)
     
     x = tf.placeholder(tf.float32, shape=(None, 20, None, None, 3))
 
@@ -104,7 +105,7 @@ def train():
                 batch_data = np.array(batch_data)
                 print(batch_data.shape)
 
-                sess.run(o, feed_dict={x:batch_data})
+                sess.run([train_op, global_step_update], feed_dict={x:batch_data})
 
             except tf.errors.OutOfRangeError:
                 break
