@@ -36,12 +36,12 @@ def model(x, num_hidden=512):
     sc4 = x
     x = tf.contrib.layers.flatten(x)
     print(x)
-    x = tf.reshape(x, [10,5,-1])
+    x = tf.reshape(x, [-1, clips, 512])
     inputs = []
-    for i in range(5): 
+    for i in range(clips): 
         c=x[:,i,:]
         inputs.append(c)
-
+    #print(inputs)
     lstm_cell = rnn.BasicLSTMCell(num_hidden, forget_bias=1.0)
     o, s = rnn.static_rnn(lstm_cell, inputs, dtype=tf.float32)
 
@@ -50,17 +50,20 @@ def model(x, num_hidden=512):
     o = tf.expand_dims(o,-2)
 
     o = tf.reshape(o, (-1,2,2,128))
-    print(tf.concat([o,sc4],-1))
+    #stacked = o.get_shape().as_list()
+    #print(stacked)
+    #print(tf.concat([o,sc4],-1))
     kernel = tf.get_variable('k', (3,3,64,128*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kernel, (50,4,4,64), strides=[1,2,2,1], padding='SAME')
+    shape = tf.shape(o)
+    
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kernel, tf.stack((shape[0],4,4,64)), strides=[1,2,2,1], padding='SAME')
     kerkernel = tf.get_variable('skr', (3,3,32,64*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerkernel, (50,8,8,32), strides=[1,2,2,1], padding='SAME')
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerkernel, tf.stack((shape[0],8,8,32)), strides=[1,2,2,1], padding='SAME')
     kerrkernel = tf.get_variable('skrr', (3,3,16,32*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrkernel, (50,16,16,16), strides=[1,2,2,1], padding='SAME')
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrkernel, tf.stack((shape[0],16,16,16)), strides=[1,2,2,1], padding='SAME')
     kerrrkernel = tf.get_variable('skrrr', (3,3,3,16*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrkernel, (50,32,32,3), strides=[1,2,2,1], padding='SAME')
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrkernel, tf.stack((shape[0],32,32,3)), strides=[1,2,2,1], padding='SAME')
     return o
-
 def train():
     tf.reset_default_graph()
     file_name = '/beegfs/tz1303/train_list.txt'
