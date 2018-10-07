@@ -59,7 +59,7 @@ def model(x, num_hidden=512):
     o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrkernel, (50,16,16,16), strides=[1,2,2,1], padding='SAME')
     kerrrkernel = tf.get_variable('skrrr', (3,3,3,16*2))
     o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrkernel, (50,32,32,3), strides=[1,2,2,1], padding='SAME')
-return o
+    return o
 
 def train():
     tf.reset_default_graph()
