@@ -125,7 +125,7 @@ def train():
                     ls_sum = 0
                 else:
                     ls_sum += ls
-                if steps%5 == 0:
+                if steps%500 == 0:
                     print("saving model")
                     saver.save(sess, model_name, global_step = steps)
             except tf.errors.OutOfRangeError:
