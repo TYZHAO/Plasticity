@@ -95,8 +95,13 @@ def train():
 
     init_op = tf.global_variables_initializer()
 
+    timestamp = calendar.timegm(time.gmtime())
+    model_dir = os.path.join('/beegfs/rw1691/pretrain/', str(timestamp))
+    os.makedirs(model_dir)
+    model_name = model_dir+'/good'
     with tf.Session() as sess:
         sess.run(init_op)
+        saver = tf.train.Saver(max_to_keep=5)
         ls_sum = 0
         while True:
             try:
@@ -118,7 +123,9 @@ def train():
                     ls_sum = 0
                 else:
                     ls_sum += ls
-                    
+                if steps%5 == 0:
+                    print("saving model")
+                    saver.save(sess, model_name, global_step = steps)
             except tf.errors.OutOfRangeError:
                 break
 
