@@ -37,7 +37,7 @@ def model(x, num_hidden=512):
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
     sc4 = x
     x = tf.contrib.layers.flatten(x)
-    print(x)
+    #print(x)
     x = tf.reshape(x, [-1, clips, 512])
     inputs = []
     for i in range(clips): 
@@ -121,12 +121,12 @@ def train():
                 ls,_ = sess.run([loss, train_op], feed_dict={x:batch_data})
 
                 if steps%10 == 0:
-                    print("steps: {} loss: {}".format(steps, ls_sum/10))
+                    tf.logging("steps: {} loss: {}".format(steps, ls_sum/10))
                     ls_sum = 0
                 else:
                     ls_sum += ls
                 if steps%500 == 0:
-                    print("saving model")
+                    tf.logging("saving model")
                     saver.save(sess, model_name, global_step = steps)
             except tf.errors.OutOfRangeError:
                 break
