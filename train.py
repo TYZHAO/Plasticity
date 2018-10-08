@@ -6,6 +6,8 @@ import os
 import cv2
 from tensorflow.contrib import rnn
 
+tf.logging.set_verbosity(tf.logging.INFO)
+
 batchsize = 16
 maxepochs = 100
 clips = 20
