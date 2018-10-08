@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import calendar
+import time
 import os
 import cv2
 from tensorflow.contrib import rnn
