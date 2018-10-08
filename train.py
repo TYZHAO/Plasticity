@@ -68,7 +68,7 @@ def model(x, num_hidden=512):
     return o
 def train():
     tf.reset_default_graph()
-    file_name = '../trainlist.txt'
+    file_name = './trainlist.txt'
     #file_name = 'F:\\data\\ucf101_jpegs_256.zip~\\train_list.txt'
     train_img = []
     for line in open(file_name):
