@@ -121,12 +121,12 @@ def train():
                 ls,_ = sess.run([loss, train_op], feed_dict={x:batch_data})
 
                 if steps%10 == 0:
-                    tf.logging("steps: {} loss: {}".format(steps, ls_sum/10))
+                    tf.logging.info("steps: {} loss: {}".format(steps, ls_sum/10))
                     ls_sum = 0
                 else:
                     ls_sum += ls
                 if steps%500 == 0:
-                    tf.logging("saving model")
+                    tf.logging.info("saving model")
                     saver.save(sess, model_name, global_step = steps)
             except tf.errors.OutOfRangeError:
                 break
