@@ -104,6 +104,7 @@ def train():
     with tf.Session() as sess:
         sess.run(init_op)
         saver = tf.train.Saver(max_to_keep=5)
+        tf.logging.info('start training')
         ls_sum = 0
         while True:
             try:
