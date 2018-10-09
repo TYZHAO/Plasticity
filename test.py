@@ -4,7 +4,9 @@ import os
 import cv2
 from tensorflow.contrib import rnn
 
-batchsize = 2
+tf.logging.set_verbosity(tf.logging.INFO)
+
+batchsize = 4
 maxepochs = 2
 '''
 def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1, 
@@ -62,7 +64,8 @@ def model(x, num_hidden=512):
 '''
 def train():
     tf.reset_default_graph()
-    file_name = '/beegfs/tz1303/train_list.txt'
+    file_name = './trainlist.txt'
+    #file_name = 'F:\\data\\ucf101_jpegs_256.zip~\\train_list.txt'
     train_img = []
     for line in open(file_name):
         line = line.split()
@@ -70,42 +73,60 @@ def train():
 
     #train_img = [item[0] for item in train_img]
 
-    train_img = [train_img[x:x+20] for x in range(0, len(train_img), 20)]
+    train_img = [train_img[x:x+clips] for x in range(0, len(train_img), clips)]
 
     dataset = tf.data.Dataset.from_tensor_slices(train_img)
     dataset = dataset.batch(batchsize).repeat(maxepochs)
     iterator = dataset.make_one_shot_iterator()
     get_data = iterator.get_next()
 
-    #global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.zeros_initializer)
-    
-    #x = tf.placeholder(tf.float32, shape=(None, 20, None, None, 3))
+    global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
+    global_step_update = tf.assign(global_step, global_step+1)
+    x = tf.placeholder(tf.float32, shape=(None, 32, 32, 3))
 
-    #o = model(x, num_hidden=512)
+    o = model(x, num_hidden=512)
 
-    #loss = tf.losses.mean_squared_error(x[1:], o[:-1])
+    loss = tf.losses.mean_squared_error(x[1:], o[:-1])
 
-    #optimizer = tf.train.AdamOptimizer()
-    #train_op = optimizer.minimize(loss=loss, global_step=global_step)
+    optimizer = tf.train.AdamOptimizer()
+    train_op = optimizer.minimize(loss=loss, global_step=global_step)
 
     init_op = tf.global_variables_initializer()
 
+    #timestamp = calendar.timegm(time.gmtime())
+    #model_dir = os.path.join('/beegfs/rw1691/pretrain/', str(timestamp))
+    #os.makedirs(model_dir)
+    #model_name = model_dir+'/good'
     with tf.Session() as sess:
         sess.run(init_op)
+        #saver = tf.train.Saver(max_to_keep=5)
+        tf.logging.info('start training')
+        ls_sum = 0
         while True:
             try:
-                
+                steps = tf.train.global_step(sess, global_step)
                 train_data = sess.run(get_data)
+                tf.logging.info(train_data)
                 batch_data = []
                 for i in range(len(train_data)):
-                    d = [cv2.resize(cv2.imread(str(d[0], encoding = "utf-8")),(160,128)) for d in train_data[i]]
+                    d = [cv2.resize(cv2.imread(str(d[0], encoding = "utf-8")),(32,32)) for d in train_data[i]]
                     d = np.array(d)
                     batch_data.append(d)
                 batch_data = np.array(batch_data)
-                print(batch_data.shape)
+                batch_data = np.reshape(batch_data, [-1,32,32,3])
+                tf.logging.info(batch_data.shape)
+                '''
+                ls,_ = sess.run([loss, train_op], feed_dict={x:batch_data})
 
-                #sess.run(o, feed_dict={x:batch_data})
-
+                if steps%10 == 0:
+                    tf.logging.info("steps: {} loss: {}".format(steps, ls_sum/10))
+                    ls_sum = 0
+                else:
+                    ls_sum += ls
+                if steps%500 == 0:
+                    tf.logging.info("saving model")
+                    saver.save(sess, model_name, global_step = steps)
+                '''
             except tf.errors.OutOfRangeError:
                 break
 
