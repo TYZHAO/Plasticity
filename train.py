@@ -8,7 +8,7 @@ from tensorflow.contrib import rnn
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-batchsize = 16
+batchsize = 64
 maxepochs = 100
 clips = 20
 
@@ -22,6 +22,15 @@ def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1,
         if activation is not None:
             x = activation(x)
     return x
+
+def lr_schedule(epoch):
+    lr = 1e-3
+    cond1 = tf.cond(tf.greater(epoch, 40), lambda:lr*1e-1, lambda:lr)
+    cond2 = tf.cond(tf.greater(epoch, 60), lambda:lr*1e-2, lambda:cond1)
+    cond3 = tf.cond(tf.greater(epoch, 80), lambda:lr*1e-3, lambda:cond2)
+    cond4 = tf.cond(tf.greater(epoch, 90), lambda:lr*0.5e-3, lambda:cond3)
+    cond4 = tf.identity(cond4, name='cond4')
+    return cond4
 
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
@@ -94,6 +103,10 @@ def train():
 
     loss = tf.losses.mean_squared_error(x[1:], o[:-1])
 
+    epoch = tf.ceil(global_step*batchsize//85118+1)
+    lr = lr_schedule(epoch)
+    optimizer = tf.train.AdamOptimizer(lr)
+
     optimizer = tf.train.AdamOptimizer()
     train_op = optimizer.minimize(loss=loss, global_step=global_step)
 
@@ -121,10 +134,10 @@ def train():
                 batch_data = np.reshape(batch_data, [-1,32,32,3])
                 #print(batch_data.shape)
 
-                ls,_ = sess.run([loss, train_op], feed_dict={x:batch_data})
+                ls,_,e = sess.run([loss, train_op, epoch], feed_dict={x:batch_data})
 
                 if steps%10 == 0:
-                    tf.logging.info("steps: {} loss: {}".format(steps, ls_sum/10))
+                    tf.logging.info("epoch: {} steps: {} loss: {}".format(e, steps, ls_sum/10))
                     ls_sum = 0
                 else:
                     ls_sum += ls
