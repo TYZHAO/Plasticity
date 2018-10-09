@@ -7,7 +7,9 @@ from tensorflow.contrib import rnn
 tf.logging.set_verbosity(tf.logging.INFO)
 
 batchsize = 4
-maxepochs = 2
+maxepochs = 1
+clips = 20
+
 '''
 def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1, 
                 activation=tf.nn.relu,batch_normalization=True):
@@ -64,7 +66,7 @@ def model(x, num_hidden=512):
 '''
 def train():
     tf.reset_default_graph()
-    file_name = './trainlist.txt'
+    file_name = '/home/rw1691/2018summer/trainlist.txt'
     #file_name = 'F:\\data\\ucf101_jpegs_256.zip~\\train_list.txt'
     train_img = []
     for line in open(file_name):
