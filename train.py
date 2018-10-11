@@ -10,7 +10,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 64
+batchsize = 32
 maxepochs = 100
 clips = 20
 
