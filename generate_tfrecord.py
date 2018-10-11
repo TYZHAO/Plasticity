@@ -5,8 +5,8 @@ import cv2
 writer = tf.python_io.TFRecordWriter('test.tfrecord')
 clips = 4
 tf.reset_default_graph()
-#file_name = '/home/rw1691/2018summer/trainlist.txt'
-file_name = 'F:\\data\\ucf101_jpegs_256.zip~\\train_list.txt'
+file_name = '/home/rw1691/2018summer/trainlist.txt'
+
 train_img = []
 for line in open(file_name):
     line = line.split()
