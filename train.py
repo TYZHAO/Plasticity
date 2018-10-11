@@ -8,6 +8,8 @@ from tensorflow.contrib import rnn
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
+file_name = '/beegfs/rw1691/inputs.tfrecord'
+
 batchsize = 64
 maxepochs = 100
 clips = 20
@@ -34,19 +36,23 @@ def lr_schedule(epoch):
 
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
-    #x = tf.reshape(x, [-1,32,32,3])
-    x = conv_block(x, 'conv1', filters=16, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.reshape(x, [-1,224,224,3])
+    x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc1 = x
-    x = conv_block(x, 'conv2', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    sc1 = x # 112
+    x = conv_block(x, 'conv2', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc2 = x
-    x = conv_block(x, 'conv3', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    sc2 = x # 56
+    x = conv_block(x, 'conv3', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc3 = x
-    x = conv_block(x, 'conv4', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    sc3 = x # 28
+    x = conv_block(x, 'conv4', filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc4 = x
+    sc4 = x # 14
+    x = conv_block(x, 'conv5', filters=512, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+    sc5 = x # 7
+    x = tf.layers.average_pooling2d(x, pool_size=7, strides=7)
     x = tf.contrib.layers.flatten(x)
     #print(x)
     x = tf.reshape(x, [-1, clips, 512])
@@ -62,47 +68,59 @@ def model(x, num_hidden=512):
     o = tf.expand_dims(o,-2)
     o = tf.expand_dims(o,-2)
 
-    o = tf.reshape(o, (-1,2,2,128))
+    o = tf.reshape(o, (-1,1,1,512))
     #stacked = o.get_shape().as_list()
     #print(stacked)
     #print(tf.concat([o,sc4],-1))
-    kernel = tf.get_variable('k', (3,3,64,128*2))
-    shape = tf.shape(o)
+    upsample = tf.keras.layers.UpSampling2D(size=(7,7))
+    o = upsample(o)
+    shape = tf.shape(o)    
     
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kernel, tf.stack((shape[0],4,4,64)), strides=[1,2,2,1], padding='SAME')
-    kerkernel = tf.get_variable('skr', (3,3,32,64*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerkernel, tf.stack((shape[0],8,8,32)), strides=[1,2,2,1], padding='SAME')
-    kerrkernel = tf.get_variable('skrr', (3,3,16,32*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrkernel, tf.stack((shape[0],16,16,16)), strides=[1,2,2,1], padding='SAME')
-    kerrrkernel = tf.get_variable('skrrr', (3,3,3,16*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrkernel, tf.stack((shape[0],32,32,3)), strides=[1,2,2,1], padding='SAME')
+    kernel = tf.get_variable('k', (3,3,256,512*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],14,14,256)), strides=[1,2,2,1], padding='SAME')
+    kerkernel = tf.get_variable('skr', (3,3,128,256*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kerkernel, tf.stack((shape[0],28,28,128)), strides=[1,2,2,1], padding='SAME')
+    kerrkernel = tf.get_variable('skrr', (3,3,64,128*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerrkernel, tf.stack((shape[0],56,56,64)), strides=[1,2,2,1], padding='SAME')
+    kerrrkernel = tf.get_variable('skrrr', (3,3,32,64*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],112,112,32)), strides=[1,2,2,1], padding='SAME')
+    kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,32*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],224,224,3)), strides=[1,2,2,1], padding='SAME')
     return o
+
+def _parse_function(serialized_example):
+    sequence_features = {
+        'inputs': tf.FixedLenSequenceFeature(shape=[],
+                                       dtype=tf.string)}
+
+    _, sequence = tf.parse_single_sequence_example(
+    serialized_example, sequence_features=sequence_features)
+    return sequence['inputs']
+
+def _decode_function(bytes_input):
+    imgs = np.zeros(np.concatenate((bytes_input.shape, (224,224,3)), axis=0))
+    for i in range(bytes_input.shape[0]):
+        for j in range(bytes_input.shape[1]):
+            imgs[i][j] = cv2.imdecode(np.fromstring(bytes_input[i][j], dtype=np.uint8), -1)
+    return imgs
 def train():
     tf.reset_default_graph()
-    file_name = '/home/rw1691/2018summer/trainlist.txt'
-    #file_name = 'F:\\data\\ucf101_jpegs_256.zip~\\train_list.txt'
-    train_img = []
-    for line in open(file_name):
-        line = line.split()
-        train_img.append(line)
 
-    #train_img = [item[0] for item in train_img]
-
-    train_img = [train_img[x:x+clips] for x in range(0, len(train_img), clips)]
-
-    dataset = tf.data.Dataset.from_tensor_slices(train_img)
-    dataset = dataset.batch(batchsize).repeat(maxepochs)
+    dataset = tf.data.TFRecordDataset(file_name)
+    dataset = dataset.map(_parse_function)
+    dataset = dataset.repeat(maxepochs)
+    dataset = dataset.batch(batchsize)
     iterator = dataset.make_one_shot_iterator()
-    get_data = iterator.get_next()
-
+    next_element = iterator.get_next()
+    
+    x = tf.placeholder(tf.float32, shape=(None,None,224,224,3))    
+    
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
     global_step_update = tf.assign(global_step, global_step+1)
-    x = tf.placeholder(tf.float32, shape=(None, 32, 32, 3))
 
     o = model(x, num_hidden=512)
-
-    loss = tf.losses.mean_squared_error(x[1:], o[:-1])
-
+    o = tf.reshape(o,tf.shape(x))
+    loss = tf.losses.mean_squared_error(x[:,1:],o[:,:-1])
     epoch = tf.ceil(global_step*batchsize//85118+1)
     lr = lr_schedule(epoch)
     optimizer = tf.train.AdamOptimizer(lr)
@@ -113,7 +131,7 @@ def train():
     init_op = tf.global_variables_initializer()
 
     timestamp = calendar.timegm(time.gmtime())
-    model_dir = os.path.join('/beegfs/rw1691/pretrain/', str(timestamp))
+    model_dir = os.path.join('./models', str(timestamp))
     os.makedirs(model_dir)
     model_name = model_dir+'/good'
     with tf.Session() as sess:
@@ -124,18 +142,10 @@ def train():
         while True:
             try:
                 steps = tf.train.global_step(sess, global_step)
-                train_data = sess.run(get_data)
-                batch_data = []
-                for i in range(len(train_data)):
-                    d = [cv2.resize(cv2.imread(str(d[0], encoding = "utf-8")),(32,32)) for d in train_data[i]]
-                    d = np.array(d)
-                    batch_data.append(d)
-                batch_data = np.array(batch_data)
-                batch_data = np.reshape(batch_data, [-1,32,32,3])
-                #print(batch_data.shape)
-
-                ls,_,e = sess.run([loss, train_op, epoch], feed_dict={x:batch_data})
-
+                input_data = sess.run(next_element)
+                batch_data = _decode_function(input_data)
+                
+                ls,_,e,xx,oo = sess.run([loss, train_op, epoch, x[:,1:], o], feed_dict={x:batch_data})
                 if steps%10 == 0:
                     tf.logging.info("epoch: {} steps: {} loss: {}".format(e, steps, ls_sum/10))
                     ls_sum = 0
