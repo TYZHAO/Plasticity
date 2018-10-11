@@ -131,7 +131,7 @@ def train():
     init_op = tf.global_variables_initializer()
 
     timestamp = calendar.timegm(time.gmtime())
-    model_dir = os.path.join('./models', str(timestamp))
+    model_dir = os.path.join('/beegfs/rw1691/models', str(timestamp))
     os.makedirs(model_dir)
     model_name = model_dir+'/good'
     with tf.Session() as sess:
