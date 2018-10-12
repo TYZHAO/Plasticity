@@ -136,7 +136,9 @@ def train():
     model_dir = os.path.join('/beegfs/rw1691/models', str(timestamp))
     os.makedirs(model_dir)
     model_name = model_dir+'/good'
-    with tf.Session() as sess:
+
+    config = tf.ConfigProto(allow_soft_placement = True)
+    with tf.Session(config = config) as sess:
         sess.run(init_op)
         saver = tf.train.Saver(max_to_keep=5)
         tf.logging.info('start training')
