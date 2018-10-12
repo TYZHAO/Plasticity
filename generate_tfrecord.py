@@ -19,7 +19,7 @@ print(len(train_img))
 for index,clip in enumerate(train_img):
     clips = []
     for img in clip:
-        std_img = cv2.resize(cv2.imread(str(img[0])),(224,224))
+        std_img = cv2.resize(cv2.imread(str(img[0])),(64,64))
         img_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
         _, img_encode = cv2.imencode('.jpg', std_img, img_param)
         std_img = tf.compat.as_bytes(img_encode.tostring())
