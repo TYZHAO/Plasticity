@@ -107,28 +107,28 @@ def _decode_function(bytes_input):
     return imgs
 def train():
     tf.reset_default_graph()
+    
+    dataset = tf.data.TFRecordDataset(file_name)
+    dataset = dataset.map(_parse_function)
+    dataset = dataset.repeat(maxepochs)
+    dataset = dataset.batch(batchsize)
+    iterator = dataset.make_one_shot_iterator()
+    next_element = iterator.get_next()
 
-    with tf.device('/device:GPU:0'):
-        dataset = tf.data.TFRecordDataset(file_name)
-        dataset = dataset.map(_parse_function)
-        dataset = dataset.repeat(maxepochs)
-        dataset = dataset.batch(batchsize)
-        iterator = dataset.make_one_shot_iterator()
-        next_element = iterator.get_next()
-        
+    with tf.device('/device:GPU:0'):    
         x = tf.placeholder(tf.float32, shape=(None,None,224,224,3))    
 
     o = model(x, num_hidden=512)
 
-    with tf.device('/device:GPU:1'):
-        o = tf.reshape(o,tf.shape(x))
-        global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
-        loss = tf.losses.mean_squared_error(x[:,1:],o[:,:-1]) 
-        epoch = tf.ceil(global_step*batchsize//85118+1)            
-        lr = lr_schedule(epoch) 
-        optimizer = tf.train.AdamOptimizer(lr)
-              
-        train_op = optimizer.minimize(loss=loss, global_step=global_step)
+    #with tf.device('/device:GPU:1'):
+    o = tf.reshape(o,tf.shape(x))
+    global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
+    loss = tf.losses.mean_squared_error(x[:,1:],o[:,:-1]) 
+    epoch = tf.ceil(global_step*batchsize//85118+1)            
+    lr = lr_schedule(epoch) 
+    optimizer = tf.train.AdamOptimizer(lr)
+          
+    train_op = optimizer.minimize(loss=loss, global_step=global_step)
         
     init_op = tf.global_variables_initializer()
 
