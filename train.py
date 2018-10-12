@@ -119,19 +119,21 @@ def train():
         x = tf.placeholder(tf.float32, shape=(None,None,224,224,3))    
 
     o = model(x, num_hidden=512)
-    
+
     with tf.device('/device:GPU:1'):
         o = tf.reshape(o,tf.shape(x))
         loss = tf.losses.mean_squared_error(x[:,1:],o[:,:-1])
         epoch = tf.ceil(global_step*batchsize//85118+1)
         lr = lr_schedule(epoch)
+
+        global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
+        global_step_update = tf.assign(global_step, global_step+1) 
+               
         optimizer = tf.train.AdamOptimizer(lr)
 
         optimizer = tf.train.AdamOptimizer()
         train_op = optimizer.minimize(loss=loss, global_step=global_step)
         
-        global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
-        global_step_update = tf.assign(global_step, global_step+1)
     init_op = tf.global_variables_initializer()
 
     timestamp = calendar.timegm(time.gmtime())
