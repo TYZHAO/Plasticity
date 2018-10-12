@@ -10,7 +10,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 8
+batchsize = 16
 maxepochs = 100
 clips = 20
 
@@ -36,58 +36,56 @@ def lr_schedule(epoch):
 
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
-    with tf.device('/device:GPU:0'):
-        x = tf.reshape(x, [-1,224,224,3])
-        x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-        sc1 = x # 112
-        x = conv_block(x, 'conv2', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-        sc2 = x # 56
-        x = conv_block(x, 'conv3', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-        sc3 = x # 28
-        x = conv_block(x, 'conv4', filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-        sc4 = x # 14
-        x = conv_block(x, 'conv5', filters=512, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-        sc5 = x # 7
-        x = tf.layers.average_pooling2d(x, pool_size=7, strides=7)
-        x = tf.contrib.layers.flatten(x)
-        #print(x)
-        x = tf.reshape(x, [-1, clips, 512])
-        inputs = []
-        for i in range(clips): 
-            c=x[:,i,:]
-            inputs.append(c)
-        #print(inputs)
-        lstm_cell = rnn.BasicLSTMCell(num_hidden, forget_bias=1.0)
-        o, s = rnn.static_rnn(lstm_cell, inputs, dtype=tf.float32)
+    x = tf.reshape(x, [-1,64,64,3])
+    x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+    sc1 = x # 32
+    x = conv_block(x, 'conv2', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+    sc2 = x # 16
+    x = conv_block(x, 'conv3', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+    sc3 = x # 8
+    x = conv_block(x, 'conv4', filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+    sc4 = x # 4
+    x = conv_block(x, 'conv5', filters=512, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+    sc5 = x # 2
+    x = tf.layers.average_pooling2d(x, pool_size=2, strides=2)
+    x = tf.contrib.layers.flatten(x)
+    #print(x)
+    x = tf.reshape(x, [-1, clips, 512])
+    inputs = []
+    for i in range(clips): 
+        c=x[:,i,:]
+        inputs.append(c)
+    #print(inputs)
+    lstm_cell = rnn.BasicLSTMCell(num_hidden, forget_bias=1.0)
+    o, s = rnn.static_rnn(lstm_cell, inputs, dtype=tf.float32)
 
-    with tf.device('/device:GPU:1'):
-        o = tf.stack(o,1)
-        o = tf.expand_dims(o,-2)
-        o = tf.expand_dims(o,-2)
+    o = tf.stack(o,1)
+    o = tf.expand_dims(o,-2)
+    o = tf.expand_dims(o,-2)
 
-        o = tf.reshape(o, (-1,1,1,512))
-        #stacked = o.get_shape().as_list()
-        #print(stacked)
-        #print(tf.concat([o,sc4],-1))
-        upsample = tf.keras.layers.UpSampling2D(size=(7,7))
-        o = upsample(o)
-        shape = tf.shape(o)    
-        
-        kernel = tf.get_variable('k', (3,3,256,512*2))
-        o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],14,14,256)), strides=[1,2,2,1], padding='SAME')
-        kerkernel = tf.get_variable('skr', (3,3,128,256*2))
-        o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kerkernel, tf.stack((shape[0],28,28,128)), strides=[1,2,2,1], padding='SAME')
-        kerrkernel = tf.get_variable('skrr', (3,3,64,128*2))
-        o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerrkernel, tf.stack((shape[0],56,56,64)), strides=[1,2,2,1], padding='SAME')
-        kerrrkernel = tf.get_variable('skrrr', (3,3,32,64*2))
-        o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],112,112,32)), strides=[1,2,2,1], padding='SAME')
-        kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,32*2))
-        o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],224,224,3)), strides=[1,2,2,1], padding='SAME')
+    o = tf.reshape(o, (-1,1,1,512))
+    #stacked = o.get_shape().as_list()
+    #print(stacked)
+    #print(tf.concat([o,sc4],-1))
+    upsample = tf.keras.layers.UpSampling2D(size=(2,2))
+    o = upsample(o)
+    shape = tf.shape(o)    
+    
+    kernel = tf.get_variable('k', (3,3,256,512*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],4,4,256)), strides=[1,2,2,1], padding='SAME')
+    kerkernel = tf.get_variable('skr', (3,3,128,256*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kerkernel, tf.stack((shape[0],8,8,128)), strides=[1,2,2,1], padding='SAME')
+    kerrkernel = tf.get_variable('skrr', (3,3,64,128*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerrkernel, tf.stack((shape[0],16,16,64)), strides=[1,2,2,1], padding='SAME')
+    kerrrkernel = tf.get_variable('skrrr', (3,3,32,64*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],32,32,32)), strides=[1,2,2,1], padding='SAME')
+    kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,32*2))
+    o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],64,64,3)), strides=[1,2,2,1], padding='SAME')
     return o
 
 def _parse_function(serialized_example):
@@ -100,7 +98,7 @@ def _parse_function(serialized_example):
     return sequence['inputs']
 
 def _decode_function(bytes_input):
-    imgs = np.zeros(np.concatenate((bytes_input.shape, (224,224,3)), axis=0))
+    imgs = np.zeros(np.concatenate((bytes_input.shape, (64,64,3)), axis=0))
     for i in range(bytes_input.shape[0]):
         for j in range(bytes_input.shape[1]):
             imgs[i][j] = cv2.imdecode(np.fromstring(bytes_input[i][j], dtype=np.uint8), -1)
@@ -114,14 +112,13 @@ def train():
     dataset = dataset.batch(batchsize)
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
-
-    with tf.device('/device:GPU:0'):    
-        x = tf.placeholder(tf.float32, shape=(None,None,224,224,3))    
+  
+    x = tf.placeholder(tf.float32, shape=(None,None,64,64,3))    
 
     o = model(x, num_hidden=512)
 
-    #with tf.device('/device:GPU:1'):
     o = tf.reshape(o,tf.shape(x))
+
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
     loss = tf.losses.mean_squared_error(x[:,1:],o[:,:-1]) 
     epoch = tf.ceil(global_step*batchsize//85118+1)            
