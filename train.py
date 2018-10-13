@@ -10,9 +10,10 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 32
+batchsize = 64
 maxepochs = 100
 clips = 20
+num_gpus=2
 
 def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1, 
                 activation=tf.nn.relu,batch_normalization=True):
@@ -37,6 +38,7 @@ def lr_schedule(epoch):
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
     x = tf.reshape(x, [-1,64,64,3])
+    img = tf.image.per_image_standardization(img)
     x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
     sc1 = x # 32
@@ -115,12 +117,22 @@ def train():
   
     x = tf.placeholder(tf.float32, shape=(None,None,64,64,3))    
 
-    o = model(x, num_hidden=512)
+    split_x = tf.split(0, num_gpus, x)
 
-    o = tf.reshape(o,tf.shape(x))
+    for i in range(num_gpus):
+        with tf.device('/gpu:%d' % i):
 
-    global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))
-    loss = tf.losses.mean_squared_error(x[:,1:],o[:,:-1]) 
+            o[i] = model(x[i], num_hidden=512)
+
+            o[i] = tf.reshape(o,tf.shape(x[i]))
+
+            if i == 0:
+                loss = tf.losses.mean_squared_error(x[i,:,1:],o[i,:,:-1])
+            else:
+                loss += tf.losses.mean_squared_error(x[i,:,1:],o[i,:,:-1])
+    loss = loss/num_gpus
+
+    global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))    
     epoch = tf.ceil(global_step*batchsize//85118+1)            
     lr = lr_schedule(epoch) 
     optimizer = tf.train.AdamOptimizer(lr)
