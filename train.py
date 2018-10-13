@@ -127,9 +127,9 @@ def train():
             o = tf.reshape(o, tf.shape(split_x[i]))
 
             if i == 0:
-                loss = tf.losses.mean_squared_error(split_x[i,:,1:], o[:,:-1])
+                loss = tf.losses.mean_squared_error(split_x[i][:,1:], o[:,:-1])
             else:
-                loss += tf.losses.mean_squared_error(split_x[i,:,1:],   o[:,:-1])
+                loss += tf.losses.mean_squared_error(split_x[i][:,1:], o[:,:-1])
     loss = loss/num_gpus
 
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))    
