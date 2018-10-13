@@ -18,7 +18,8 @@ for line in open(file_name):
 
 train_img = [train_img[x:x+clip_num] for x in range(0, len(train_img), clip_num)]
 
-train_img = random.sample(train_img, 20000)
+train_img = [ train_img[i] for i in sorted(random.sample(range(len(train_img)), 20000)) ]
+#train_img = random.sample(train_img, 20000)
 
 tf.logging.info(len(train_img))
 for index,clip in enumerate(train_img):
