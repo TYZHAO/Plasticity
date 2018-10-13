@@ -122,14 +122,14 @@ def train():
     for i in range(num_gpus):
         with tf.device('/gpu:%d' % i):
 
-            o[i] = model(split_x[i], num_hidden=512)
+            o = model(split_x[i], num_hidden=512)
 
-            o[i] = tf.reshape(o,tf.shape(split_x[i]))
+            o = tf.reshape(o, tf.shape(split_x[i]))
 
             if i == 0:
-                loss = tf.losses.mean_squared_error(split_x[i,:,1:],o[i,:,:-1])
+                loss = tf.losses.mean_squared_error(split_x[i,:,1:], o[:,:-1])
             else:
-                loss += tf.losses.mean_squared_error(split_x[i,:,1:],o[i,:,:-1])
+                loss += tf.losses.mean_squared_error(split_x[i,:,1:],   o[:,:-1])
     loss = loss/num_gpus
 
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))    
