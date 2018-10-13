@@ -37,57 +37,58 @@ def lr_schedule(epoch):
 
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
-    x = tf.reshape(x, [-1,64,64,3])
-    x = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), x)
-    x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc1 = x # 32
-    x = conv_block(x, 'conv2', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc2 = x # 16
-    x = conv_block(x, 'conv3', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc3 = x # 8
-    x = conv_block(x, 'conv4', filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc4 = x # 4
-    x = conv_block(x, 'conv5', filters=512, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
-    x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
-    sc5 = x # 2
-    x = tf.layers.average_pooling2d(x, pool_size=2, strides=2)
-    x = tf.contrib.layers.flatten(x)
-    #print(x)
-    x = tf.reshape(x, [-1, clips, 512])
-    inputs = []
-    for i in range(clips): 
-        c=x[:,i,:]
-        inputs.append(c)
-    #print(inputs)
-    lstm_cell = rnn.BasicLSTMCell(num_hidden, forget_bias=1.0)
-    o, s = rnn.static_rnn(lstm_cell, inputs, dtype=tf.float32)
+    with tf.variable_scope('model', reuse=tf.AUTO_REUSE)
+        x = tf.reshape(x, [-1,64,64,3])
+        x = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), x)
+        x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+        sc1 = x # 32
+        x = conv_block(x, 'conv2', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+        sc2 = x # 16
+        x = conv_block(x, 'conv3', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+        sc3 = x # 8
+        x = conv_block(x, 'conv4', filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+        sc4 = x # 4
+        x = conv_block(x, 'conv5', filters=512, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+        sc5 = x # 2
+        x = tf.layers.average_pooling2d(x, pool_size=2, strides=2)
+        x = tf.contrib.layers.flatten(x)
+        #print(x)
+        x = tf.reshape(x, [-1, clips, 512])
+        inputs = []
+        for i in range(clips): 
+            c=x[:,i,:]
+            inputs.append(c)
+        #print(inputs)
+        lstm_cell = rnn.BasicLSTMCell(num_hidden, forget_bias=1.0)
+        o, s = rnn.static_rnn(lstm_cell, inputs, dtype=tf.float32)
 
-    o = tf.stack(o,1)
-    o = tf.expand_dims(o,-2)
-    o = tf.expand_dims(o,-2)
+        o = tf.stack(o,1)
+        o = tf.expand_dims(o,-2)
+        o = tf.expand_dims(o,-2)
 
-    o = tf.reshape(o, (-1,1,1,512))
-    #stacked = o.get_shape().as_list()
-    #print(stacked)
-    #print(tf.concat([o,sc4],-1))
-    upsample = tf.keras.layers.UpSampling2D(size=(2,2))
-    o = upsample(o)
-    shape = tf.shape(o)    
-    
-    kernel = tf.get_variable('k', (3,3,256,512*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],4,4,256)), strides=[1,2,2,1], padding='SAME')
-    kerkernel = tf.get_variable('skr', (3,3,128,256*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kerkernel, tf.stack((shape[0],8,8,128)), strides=[1,2,2,1], padding='SAME')
-    kerrkernel = tf.get_variable('skrr', (3,3,64,128*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerrkernel, tf.stack((shape[0],16,16,64)), strides=[1,2,2,1], padding='SAME')
-    kerrrkernel = tf.get_variable('skrrr', (3,3,32,64*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],32,32,32)), strides=[1,2,2,1], padding='SAME')
-    kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,32*2))
-    o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],64,64,3)), strides=[1,2,2,1], padding='SAME')
+        o = tf.reshape(o, (-1,1,1,512))
+        #stacked = o.get_shape().as_list()
+        #print(stacked)
+        #print(tf.concat([o,sc4],-1))
+        upsample = tf.keras.layers.UpSampling2D(size=(2,2))
+        o = upsample(o)
+        shape = tf.shape(o)    
+        
+        kernel = tf.get_variable('k', (3,3,256,512*2))
+        o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],4,4,256)), strides=[1,2,2,1], padding='SAME')
+        kerkernel = tf.get_variable('skr', (3,3,128,256*2))
+        o = tf.nn.conv2d_transpose(tf.concat([o,sc4],-1), kerkernel, tf.stack((shape[0],8,8,128)), strides=[1,2,2,1], padding='SAME')
+        kerrkernel = tf.get_variable('skrr', (3,3,64,128*2))
+        o = tf.nn.conv2d_transpose(tf.concat([o,sc3],-1), kerrkernel, tf.stack((shape[0],16,16,64)), strides=[1,2,2,1], padding='SAME')
+        kerrrkernel = tf.get_variable('skrrr', (3,3,32,64*2))
+        o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],32,32,32)), strides=[1,2,2,1], padding='SAME')
+        kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,32*2))
+        o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],64,64,3)), strides=[1,2,2,1], padding='SAME')
     return o
 
 def _parse_function(serialized_example):
