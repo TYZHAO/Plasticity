@@ -10,10 +10,10 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 64
+batchsize = 128 
 maxepochs = 100
-clips = 20
-num_gpus=1
+clips = 10
+num_gpus = 2
 
 def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1, 
                 activation=tf.nn.relu,batch_normalization=True):
@@ -134,7 +134,7 @@ def train():
     loss = loss/num_gpus
 
     global_step=tf.get_variable('global_step',(), trainable=False, initializer=tf.constant_initializer([1]))    
-    epoch = tf.ceil(global_step*batchsize//85118+1)            
+    epoch = tf.ceil(global_step*batchsize//20000+1)            
     lr = lr_schedule(epoch) 
     optimizer = tf.train.AdamOptimizer(lr)
           
