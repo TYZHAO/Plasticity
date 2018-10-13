@@ -1,9 +1,12 @@
 import tensorflow as tf
 import numpy as np
+import random
 import cv2
 
+tf.logging.set_verbosity(tf.logging.INFO)
+
 writer = tf.python_io.TFRecordWriter('/beegfs/rw1691/inputs.tfrecord')
-clip_num = 20
+clip_num = 10
 tf.reset_default_graph()
 
 file_name = '/home/rw1691/2018summer/trainlist.txt'
@@ -15,7 +18,9 @@ for line in open(file_name):
 
 train_img = [train_img[x:x+clip_num] for x in range(0, len(train_img), clip_num)]
 
-print(len(train_img))
+train_img = random.sample(train_img, 20000)
+
+tf.logging.info(len(train_img))
 for index,clip in enumerate(train_img):
     clips = []
     for img in clip:
@@ -34,5 +39,5 @@ for index,clip in enumerate(train_img):
 
     serialized = example.SerializeToString()
     writer.write(serialized)
-    print('finish write to {}'.format(index))
+    tf.logging.info('finish write to {}'.format(index))
 writer.close()
