@@ -39,5 +39,7 @@ for index,clip in enumerate(train_img):
 
     serialized = example.SerializeToString()
     writer.write(serialized)
-    tf.logging.info('finish write to {}'.format(index))
+    if index%100 == 0:
+        tf.logging.info('finish write to {}'.format(index))
+
 writer.close()
