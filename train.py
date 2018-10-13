@@ -38,7 +38,7 @@ def lr_schedule(epoch):
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
     x = tf.reshape(x, [-1,64,64,3])
-    img = tf.image.per_image_standardization(img)
+    x = tf.image.per_image_standardization(x)
     x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
     x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
     sc1 = x # 32
