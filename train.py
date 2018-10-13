@@ -37,7 +37,7 @@ def lr_schedule(epoch):
 
 def model(x, num_hidden=512):
     #x = tf.zeros((10,5,32,32,3))
-    with tf.variable_scope('model', reuse=tf.AUTO_REUSE)
+    with tf.variable_scope('model', reuse=tf.AUTO_REUSE):
         x = tf.reshape(x, [-1,64,64,3])
         x = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), x)
         x = conv_block(x, 'conv1', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
