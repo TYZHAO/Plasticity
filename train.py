@@ -183,8 +183,7 @@ def train():
                 break
 
 if __name__ == '__main__':
-    train()
-
+    
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -193,3 +192,6 @@ if __name__ == '__main__':
         default='1014')
 
     FLAGS, unparsed = parser.parse_known_args()
+
+    train()
+
