@@ -14,7 +14,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
 batchsize = 128 
-maxepochs = 100
+maxepochs = 20
 clips = 10
 num_gpus = 2
 
@@ -183,13 +183,16 @@ def train():
                 break
 
 if __name__ == '__main__':
-    
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         '--save_dir',
         type=str,
-        default='1014')
+        default='default')
+    
+    if FLAGS.save_dir == 'default':
+        raise ValueError('you must name the dir')
 
     FLAGS, unparsed = parser.parse_known_args()
 
