@@ -141,7 +141,7 @@ def train():
         
     init_op = tf.global_variables_initializer()
 
-    model_name = model_dir+'/good'
+
 
     config = tf.ConfigProto(allow_soft_placement = True)
     
@@ -149,6 +149,7 @@ def train():
         sess.run(init_op)
 
         model_dir = os.path.join('/beegfs/rw1691/models', FLAGS.save_dir)
+        model_name = model_dir+'/good'
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
         else:
