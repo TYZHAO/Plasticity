@@ -38,6 +38,61 @@ def lr_schedule(epoch):
     #cond4 = tf.identity(cond4, name='cond4')
     return cond3
 
+def hebb_transpose_conv(value, target_shape):
+    #value --> [1,3,3,1] NHWC
+    #target --> [1,5,5,1] NHWC
+    
+    stride=2
+    
+    value_shape = value.get_shape().as_list()
+    #NHWC
+    stride_map_shape = [value_shape[0],2*value_shape[1]-1,2*value_shape[2]-1,value_shape[3]]
+    print(stride_map_shape)
+    num_indices = stride_map_shape[0]*stride_map_shape[1]*stride_map_shape[2]*stride_map_shape[3]
+    #inp = tf.reshape(value, [1,3,3,1])
+    #inp = tf.cast(inp,tf.float32)
+    
+    value = tf.reshape(value,[-1])
+    value = tf.cast(value,tf.float32)
+    
+    stride_map = tf.zeros(stride_map_shape)
+
+    stride_map = tf.reshape(stride_map,[-1])
+
+    bigindices = tf.range(num_indices)
+
+    z = np.zeros(stride_map_shape[1:3],dtype=np.float32)
+    a = np.arange(1,1+value_shape[1]*value_shape[2])
+    a = np.reshape(a, (value_shape[1],value_shape[2]))
+
+    z[0:stride_map_shape[1]:stride,0:stride_map_shape[2]:stride] = a
+    z = z.flatten()
+
+    slice_incides = tf.convert_to_tensor(z.nonzero()[0])
+
+    new_indices = tf.stack([slice_incides+i for i in range(0,num_indices,stride_map_shape[1]*stride_map_shape[2])])
+    new_indices = tf.reshape(new_indices, [-1])
+    new_indices = tf.cast(new_indices,tf.int32)
+    #print([bigindices, new_indices])
+
+    x_flat = tf.dynamic_stitch([bigindices, new_indices],[stride_map, value])
+    #print(x_flat)
+    #flat_new = tf.scatter_update(x,new_indices,update)
+    new = tf.reshape(x_flat, stride_map_shape)
+    #with tf.Session() as sess:
+        #print(sess.run(new))
+        
+    #HWIO
+    kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
+    
+    if(target_shape[1]/value_shape[1]==2):
+        #0101
+        new = tf.pad(new,tf.constant([[0,0],[0,1],[0,1],[0,0]]))
+
+    out = tf.nn.conv2d(input=new, filter=kernel, strides=[1, 1, 1, 1], padding='SAME')
+
+    return out
+
 def model(x, num_hidden=256):
     #x = tf.zeros((10,5,32,32,3))
     with tf.variable_scope('model', reuse=tf.AUTO_REUSE):
@@ -81,7 +136,13 @@ def model(x, num_hidden=256):
         upsample = tf.keras.layers.UpSampling2D(size=(2,2))
         o = upsample(o)
         shape = tf.shape(o)    
-        
+
+        o = hebb_transpose_conv(tf.concat([o,sc5],-1),(4,4,128))
+        o = hebb_transpose_conv(tf.concat([o,sc4],-1),(8,8,64))
+        o = hebb_transpose_conv(tf.concat([o,sc3],-1),(16,16,32))
+        o = hebb_transpose_conv(tf.concat([o,sc2],-1),(32,32,16))
+        o = hebb_transpose_conv(tf.concat([o,sc1],-1),(64,64,3))
+        '''
         kernel = tf.get_variable('k', (3,3,128,256*2))
         o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],4,4,128)), strides=[1,2,2,1], padding='SAME')
         kerkernel = tf.get_variable('skr', (3,3,64,128*2))
@@ -92,7 +153,7 @@ def model(x, num_hidden=256):
         o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],32,32,16)), strides=[1,2,2,1], padding='SAME')
         kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,16*2))
         o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],64,64,3)), strides=[1,2,2,1], padding='SAME')
-
+        '''
         o = tf.nn.sigmoid(o)*255
     return o
 
@@ -181,7 +242,7 @@ def train():
                     saver.save(sess, model_name, global_step = steps)
             except tf.errors.OutOfRangeError:
                 break
-                
+
         saver.save(sess, model_name, global_step = steps)
 
 if __name__ == '__main__':
