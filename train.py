@@ -191,3 +191,5 @@ if __name__ == '__main__':
         '--save_dir',
         type=str,
         default='1014')
+
+    FLAGS, unparsed = parser.parse_known_args()
