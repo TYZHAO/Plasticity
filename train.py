@@ -4,6 +4,9 @@ import calendar
 import time
 import os
 import cv2
+import argparse 
+import sys 
+
 from tensorflow.contrib import rnn
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -31,9 +34,9 @@ def lr_schedule(epoch):
     cond1 = tf.cond(tf.greater(epoch, 40), lambda:lr*1e-1, lambda:lr)
     cond2 = tf.cond(tf.greater(epoch, 60), lambda:lr*1e-2, lambda:cond1)
     cond3 = tf.cond(tf.greater(epoch, 80), lambda:lr*1e-3, lambda:cond2)
-    cond4 = tf.cond(tf.greater(epoch, 90), lambda:lr*0.5e-3, lambda:cond3)
-    cond4 = tf.identity(cond4, name='cond4')
-    return cond4
+    #cond4 = tf.cond(tf.greater(epoch, 90), lambda:lr*0.5e-3, lambda:cond3)
+    #cond4 = tf.identity(cond4, name='cond4')
+    return cond3
 
 def model(x, num_hidden=256):
     #x = tf.zeros((10,5,32,32,3))
@@ -89,6 +92,8 @@ def model(x, num_hidden=256):
         o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],32,32,16)), strides=[1,2,2,1], padding='SAME')
         kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,16*2))
         o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],64,64,3)), strides=[1,2,2,1], padding='SAME')
+
+        o = tf.nn.sigmoid(o)*255
     return o
 
 def _parse_function(serialized_example):
@@ -100,12 +105,6 @@ def _parse_function(serialized_example):
     serialized_example, sequence_features=sequence_features)
     return sequence['inputs']
 
-def _decode_function(bytes_input):
-    imgs = np.zeros(np.concatenate((bytes_input.shape, (64,64,3)), axis=0))
-    for i in range(bytes_input.shape[0]):
-        for j in range(bytes_input.shape[1]):
-            imgs[i][j] = cv2.imdecode(np.fromstring(bytes_input[i][j], dtype=np.uint8), -1)
-    return imgs
 def train():
     tf.reset_default_graph()
     
@@ -142,24 +141,35 @@ def train():
         
     init_op = tf.global_variables_initializer()
 
-    timestamp = calendar.timegm(time.gmtime())
-    model_dir = os.path.join('/beegfs/rw1691/models', str(timestamp))
-    os.makedirs(model_dir)
     model_name = model_dir+'/good'
 
     config = tf.ConfigProto(allow_soft_placement = True)
+    
     with tf.Session(config = config) as sess:
         sess.run(init_op)
+
+        model_dir = os.path.join('/beegfs/rw1691/models', FLAGS.save_dir)
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+        else:
+            restorer = tf.train.Saver()
+            pretrained_model = tf.train.latest_checkpoint(model_dir)
+            restorer.restore(sess, pretrained_model) 
+
         saver = tf.train.Saver(max_to_keep=5)
+
         tf.logging.info('start training')
         ls_sum = 0
         while True:
             try:
                 steps = tf.train.global_step(sess, global_step)
                 input_data = sess.run(next_element)
-                batch_data = _decode_function(input_data)
-                
-                ls,_,e,xx,oo = sess.run([loss, train_op, epoch, x[:,1:], o], feed_dict={x:batch_data})
+                imgs = np.zeros(np.concatenate((input_data.shape, (64,64,3)), axis=0))
+                for i in range(input_data.shape[0]):
+                    for j in range(input_data.shape[1]):
+                        imgs[i][j] = cv2.imdecode(np.fromstring(input_data[i][j], dtype=np.uint8), -1)
+                batch_data = imgs                
+                ls,_,e = sess.run([loss, train_op, epoch], feed_dict={x:batch_data})
                 if steps%10 == 0:
                     tf.logging.info("epoch: {} steps: {} loss: {}".format(e, steps, ls_sum/10))
                     ls_sum = 0
@@ -173,3 +183,10 @@ def train():
 
 if __name__ == '__main__':
     train()
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '--save_dir',
+        type=str,
+        default='1014')
