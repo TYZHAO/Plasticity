@@ -181,6 +181,8 @@ def train():
                     saver.save(sess, model_name, global_step = steps)
             except tf.errors.OutOfRangeError:
                 break
+                
+        saver.save(sess, model_name, global_step = steps)
 
 if __name__ == '__main__':
 
@@ -192,7 +194,7 @@ if __name__ == '__main__':
         default='default')
 
     FLAGS, unparsed = parser.parse_known_args()    
-    
+
     if FLAGS.save_dir == 'default':
         raise ValueError('you must name the dir')
 
