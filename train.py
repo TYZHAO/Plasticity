@@ -190,11 +190,13 @@ if __name__ == '__main__':
         '--save_dir',
         type=str,
         default='default')
+
+    FLAGS, unparsed = parser.parse_known_args()    
     
     if FLAGS.save_dir == 'default':
         raise ValueError('you must name the dir')
 
-    FLAGS, unparsed = parser.parse_known_args()
+
 
     train()
 
