@@ -38,58 +38,58 @@ def lr_schedule(epoch):
     #cond4 = tf.identity(cond4, name='cond4')
     return cond3
 
-def hebb_transpose_conv(value, target_shape):
+def hebb_transpose_conv(value, target_shape, name):
     #value --> [1,3,3,1] NHWC
     #target --> [1,5,5,1] NHWC
-    
-    stride=2
-    
-    value_shape = value.get_shape().as_list()
-    #NHWC
-    stride_map_shape = [value_shape[0],2*value_shape[1]-1,2*value_shape[2]-1,value_shape[3]]
-    print(stride_map_shape)
-    num_indices = stride_map_shape[0]*stride_map_shape[1]*stride_map_shape[2]*stride_map_shape[3]
-    #inp = tf.reshape(value, [1,3,3,1])
-    #inp = tf.cast(inp,tf.float32)
-    
-    value = tf.reshape(value,[-1])
-    value = tf.cast(value,tf.float32)
-    
-    stride_map = tf.zeros(stride_map_shape)
+    with tf.variable_scope(name):
+        stride=2
 
-    stride_map = tf.reshape(stride_map,[-1])
+        value_shape = value.get_shape().as_list()
+        #NHWC
+        stride_map_shape = [value_shape[0],2*value_shape[1]-1,2*value_shape[2]-1,value_shape[3]]
+        print(stride_map_shape)
+        num_indices = stride_map_shape[0]*stride_map_shape[1]*stride_map_shape[2]*stride_map_shape[3]
+        #inp = tf.reshape(value, [1,3,3,1])
+        #inp = tf.cast(inp,tf.float32)
 
-    bigindices = tf.range(num_indices)
+        value = tf.reshape(value,[-1])
+        value = tf.cast(value,tf.float32)
 
-    z = np.zeros(stride_map_shape[1:3],dtype=np.float32)
-    a = np.arange(1,1+value_shape[1]*value_shape[2])
-    a = np.reshape(a, (value_shape[1],value_shape[2]))
+        stride_map = tf.zeros(stride_map_shape)
 
-    z[0:stride_map_shape[1]:stride,0:stride_map_shape[2]:stride] = a
-    z = z.flatten()
+        stride_map = tf.reshape(stride_map,[-1])
 
-    slice_incides = tf.convert_to_tensor(z.nonzero()[0])
+        bigindices = tf.range(num_indices)
 
-    new_indices = tf.stack([slice_incides+i for i in range(0,num_indices,stride_map_shape[1]*stride_map_shape[2])])
-    new_indices = tf.reshape(new_indices, [-1])
-    new_indices = tf.cast(new_indices,tf.int32)
-    #print([bigindices, new_indices])
+        z = np.zeros(stride_map_shape[1:3],dtype=np.float32)
+        a = np.arange(1,1+value_shape[1]*value_shape[2])
+        a = np.reshape(a, (value_shape[1],value_shape[2]))
 
-    x_flat = tf.dynamic_stitch([bigindices, new_indices],[stride_map, value])
-    #print(x_flat)
-    #flat_new = tf.scatter_update(x,new_indices,update)
-    new = tf.reshape(x_flat, stride_map_shape)
-    #with tf.Session() as sess:
-        #print(sess.run(new))
-        
-    #HWIO
-    kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
-    
-    if(target_shape[1]/value_shape[1]==2):
-        #0101
-        new = tf.pad(new,tf.constant([[0,0],[0,1],[0,1],[0,0]]))
+        z[0:stride_map_shape[1]:stride,0:stride_map_shape[2]:stride] = a
+        z = z.flatten()
 
-    out = tf.nn.conv2d(input=new, filter=kernel, strides=[1, 1, 1, 1], padding='SAME')
+        slice_incides = tf.convert_to_tensor(z.nonzero()[0])
+
+        new_indices = tf.stack([slice_incides+i for i in range(0,num_indices,stride_map_shape[1]*stride_map_shape[2])])
+        new_indices = tf.reshape(new_indices, [-1])
+        new_indices = tf.cast(new_indices,tf.int32)
+        #print([bigindices, new_indices])
+
+        x_flat = tf.dynamic_stitch([bigindices, new_indices],[stride_map, value])
+        #print(x_flat)
+        #flat_new = tf.scatter_update(x,new_indices,update)
+        new = tf.reshape(x_flat, stride_map_shape)
+        #with tf.Session() as sess:
+            #print(sess.run(new))
+
+        #HWIO
+        kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
+
+        if(target_shape[1]/value_shape[1]==2):
+            #0101
+            new = tf.pad(new,tf.constant([[0,0],[0,1],[0,1],[0,0]]))
+
+        out = tf.nn.conv2d(input=new, filter=kernel, strides=[1, 1, 1, 1], padding='SAME')
 
     return out
 
