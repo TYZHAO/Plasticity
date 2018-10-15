@@ -66,11 +66,20 @@ def hebb_transpose_conv(value, target_shape, name):
         z[0:stride_map_shape[1]:stride,0:stride_map_shape[2]:stride] = a
         z = z.flatten()
 
-        slice_incides = tf.convert_to_tensor(z.nonzero()[0])
+        #print(z.nonzero()[0].shape)
+        nz = z.nonzero()[0]
+        print(nz.shape[0])
+        ni = np.tile(nz,stride_map_shape[0]*stride_map_shape[3])
+        for i in range(0,stride_map_shape[0]*stride_map_shape[3]):
+            ni[i*nz.shape[0]:(i+1)*nz.shape[0]]+=i*stride_map_shape[1]*stride_map_shape[2]
+        
+        print(ni)
+        new_indices = tf.convert_to_tensor(ni,dtype=tf.int32)
+        #slice_incides = tf.convert_to_tensor(z.nonzero()[0])
 
-        new_indices = tf.stack([slice_incides+i for i in range(0,num_indices,stride_map_shape[1]*stride_map_shape[2])])
-        new_indices = tf.reshape(new_indices, [-1])
-        new_indices = tf.cast(new_indices,tf.int32)
+        #new_indices = tf.stack([slice_incides+i for i in range(0,num_indices,stride_map_shape[1]*stride_map_shape[2])])
+        #new_indices = tf.reshape(new_indices, [-1])
+        #new_indices = tf.cast(new_indices,tf.int32)
         #print([bigindices, new_indices])
 
         x_flat = tf.dynamic_stitch([bigindices, new_indices],[stride_map, value])
