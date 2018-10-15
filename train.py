@@ -13,7 +13,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 128 
+batchsize = 200
 maxepochs = 20
 clips = 10
 num_gpus = 2
@@ -176,7 +176,7 @@ def train():
     iterator = dataset.make_one_shot_iterator()
     next_element = iterator.get_next()
   
-    x = tf.placeholder(tf.float32, shape=(None,None,64,64,3))    
+    x = tf.placeholder(tf.float32, shape=(batchsize,clips,64,64,3))    
 
     split_x = tf.split(x, num_gpus)
 
