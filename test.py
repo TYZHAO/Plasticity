@@ -67,7 +67,7 @@ def model(x, num_hidden=512):
     o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrkernel, tf.stack((shape[0],32,32,3)), strides=[1,2,2,1], padding='SAME')
     return o
 
-    
+
 def train():
     tf.reset_default_graph()
     file_name = '/home/rw1691/2018summer/trainlist.txt'
@@ -134,7 +134,7 @@ def train():
                     saver.save(sess, model_name, global_step = steps)
                 '''
             except tf.errors.OutOfRangeError:
-                break
+                break   
 
 if __name__ == '__main__':
     train()
