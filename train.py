@@ -13,7 +13,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 10
+batchsize = 100
 maxepochs = 20
 clips = 10
 num_gpus = 2
@@ -49,8 +49,6 @@ def hebb_transpose_conv(value, target_shape, name):
         stride_map_shape = [value_shape[0],2*value_shape[1]-1,2*value_shape[2]-1,value_shape[3]]
         print(stride_map_shape)
         num_indices = stride_map_shape[0]*stride_map_shape[1]*stride_map_shape[2]*stride_map_shape[3]
-        #inp = tf.reshape(value, [1,3,3,1])
-        #inp = tf.cast(inp,tf.float32)
 
         value = tf.reshape(value,[-1])
         value = tf.cast(value,tf.float32)
@@ -79,8 +77,6 @@ def hebb_transpose_conv(value, target_shape, name):
         #print(x_flat)
         #flat_new = tf.scatter_update(x,new_indices,update)
         new = tf.reshape(x_flat, stride_map_shape)
-        #with tf.Session() as sess:
-            #print(sess.run(new))
 
         #HWIO
         kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
