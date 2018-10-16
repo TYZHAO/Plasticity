@@ -75,16 +75,9 @@ def hebb_transpose_conv(value, target_shape, name):
         
         print(ni)
         new_indices = tf.convert_to_tensor(ni,dtype=tf.int32)
-        #slice_incides = tf.convert_to_tensor(z.nonzero()[0])
-
-        #new_indices = tf.stack([slice_incides+i for i in range(0,num_indices,stride_map_shape[1]*stride_map_shape[2])])
-        #new_indices = tf.reshape(new_indices, [-1])
-        #new_indices = tf.cast(new_indices,tf.int32)
-        #print([bigindices, new_indices])
 
         x_flat = tf.dynamic_stitch([bigindices, new_indices],[stride_map, value])
-        #print(x_flat)
-        #flat_new = tf.scatter_update(x,new_indices,update)
+
         new = tf.reshape(x_flat, stride_map_shape)
 
         #HWIO
@@ -92,7 +85,7 @@ def hebb_transpose_conv(value, target_shape, name):
 
         if(target_shape[1]/value_shape[1]==2):
             #0101
-            new = tf.pad(new,tf.constant([[0,0],[0,1],[0,1],[0,0]]))
+            new = tf.pad(new,tf.constant([[0,0],[1,0],[1,0],[0,0]]))
 
         out = tf.nn.conv2d(input=new, filter=kernel, strides=[1, 1, 1, 1], padding='SAME')
 
