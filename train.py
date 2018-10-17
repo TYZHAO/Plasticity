@@ -133,7 +133,7 @@ def model(x, num_hidden=256):
         #print(tf.concat([o,sc4],-1))
         upsample = tf.keras.layers.UpSampling2D(size=(2,2))
         o = upsample(o)
-        shape = tf.shape(o)    
+        shape = tf.shape(o)
         '''
         o = hebb_transpose_conv(tf.concat([o,sc5],-1),(4,4,128),"trans_0")
         o = hebb_transpose_conv(tf.concat([o,sc4],-1),(8,8,64),"trans_1")
