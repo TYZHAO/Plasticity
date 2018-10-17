@@ -355,7 +355,7 @@ def train():
                     for j in range(input_data.shape[1]):
                         imgs[i][j] = cv2.imdecode(np.fromstring(input_data[i][j], dtype=np.uint8), -1)
                 batch_data = imgs                
-                ls,_,e = sess.run([loss, train_op, epoch,update], feed_dict={x:batch_data})
+                ls,_,e,_ = sess.run([loss, train_op, epoch,update], feed_dict={x:batch_data})
                 if steps%10 == 0:
                     tf.logging.info("epoch: {} steps: {} loss: {}".format(e, steps, ls_sum/10))
                     ls_sum = 0
