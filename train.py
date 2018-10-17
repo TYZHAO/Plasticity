@@ -13,10 +13,11 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 file_name = '/beegfs/rw1691/inputs.tfrecord'
 
-batchsize = 100
+batchsize = 50
 maxepochs = 20
 clips = 10
-num_gpus = 2
+num_gpus = 1
+update = []
 
 def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1, 
                 activation=tf.nn.relu,batch_normalization=True):
@@ -38,10 +39,79 @@ def lr_schedule(epoch):
     #cond4 = tf.identity(cond4, name='cond4')
     return cond3
 
+def hebb_conv_layer(inputs, scope_name, update_ops, filters=16, kernel_size=3, strides=1, 
+                activation=tf.nn.relu, batch_normalization=True):
+
+    with tf.variable_scope(scope_name):
+        
+        w = tf.get_variable('conv_w', (kernel_size, kernel_size,
+                                       int(inputs.shape[-1]), filters),
+                                       initializer=tf.contrib.layers.xavier_initializer())
+        alpha = tf.get_variable('conv_alpha', (kernel_size, kernel_size,
+                                               int(inputs.shape[-1]), filters),
+                                               initializer=tf.random_uniform_initializer(0,1))
+        hebb = tf.get_variable('conv_hebb', (kernel_size, kernel_size,
+                                             int(inputs.shape[-1]), filters), trainable=False,
+                                             initializer=tf.zeros_initializer)
+        b = tf.get_variable('conv_b', (filters,), initializer=tf.contrib.layers.xavier_initializer())
+        eta = tf.get_variable('eta', (), initializer=tf.constant_initializer(.01))
+        hebb_update = tf.get_variable('hebb_update', (kernel_size, kernel_size,
+                                                     int(inputs.shape[-1]), filters), trainable=False,
+                                                     initializer=tf.zeros_initializer)
+        #inp = tf.get_variable('inputs', inputs.shape[1:],trainable = False)
+        #update_inputs = tf.assign(inp, inputs[0])
+        #update_ops.append(update_inputs)
+        #inputs = tf.identity(inputs, 'inputs')
+
+        new_hebb = eta * hebb_update  + hebb
+
+        x = tf.nn.conv2d(input=inputs, filter=w + tf.multiply(alpha, new_hebb),
+                         strides=[1, strides, strides, 1], padding='SAME') + b
+        
+        with tf.control_dependencies([x]):
+            _hebb = tf.assign(hebb, new_hebb)
+            update_ops.append(_hebb)
+
+        if batch_normalization:
+            x = tf.layers.batch_normalization(x)
+        if activation is not None:
+            x = activation(x)
+        
+        upsample = tf.contrib.keras.layers.UpSampling2D(size=(strides, strides), data_format=None)
+        y = upsample(x)
+        
+        y = tf.tanh(y)
+
+        y = tf.transpose(y, [1, 2, 0, 3])
+
+        # in_mod is the input padded a/c to prev. convolution
+        in_mod = tf.pad(inputs, [[0, 0], [int(np.floor((kernel_size - 1) / 2)), int(np.ceil((kernel_size - 1) / 2))], 
+                    [int(np.floor((kernel_size - 1) / 2)), int(np.ceil((kernel_size - 1) / 2))], [0, 0]])
+        in_mod = tf.tanh(in_mod)
+
+        in_mod = tf.transpose(in_mod, [3, 1, 2, 0])
+
+        hebb_new = tf.nn.conv2d(input=in_mod, filter=y, strides=([1] * 4), padding='VALID')
+        hebb_new = tf.transpose(hebb_new, [1, 2, 0, 3])
+        
+        shapex = tf.cast(tf.shape(x), tf.float32)
+        shapey = tf.cast(tf.shape(y), tf.float32)
+        hebb_new = hebb_new/(shapey[0] * shapey[1] * shapey[2]) - tf.reduce_mean(tf.square(x), axis=[0,1,2,3]) *hebb
+
+        hebb_ = tf.assign(hebb_update, hebb_new)
+
+        update_ops.append(hebb_)
+        
+    return x
+
+
 def hebb_transpose_conv(value, target_shape, name):
     #value --> [1,3,3,1] NHWC
     #target --> [1,5,5,1] NHWC
+    kernel_size=3
     with tf.variable_scope(name):
+
+        x = value
         stride=2
 
         value_shape = value.get_shape().as_list()
@@ -81,13 +151,68 @@ def hebb_transpose_conv(value, target_shape, name):
         new = tf.reshape(x_flat, stride_map_shape)
 
         #HWIO
-        kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
+        #kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
+
+        w = tf.get_variable('conv_w', (3,3,target_shape[2],value_shape[3]),
+                                       initializer=tf.contrib.layers.xavier_initializer())
+        alpha = tf.get_variable('conv_alpha', (3,3,target_shape[2],value_shape[3]),
+                                               initializer=tf.random_uniform_initializer(0,1))
+        hebb = tf.get_variable('conv_hebb', (3,3,target_shape[2],value_shape[3]), trainable=False,
+                                             initializer=tf.zeros_initializer)
+        #b = tf.get_variable('conv_b', (filters,), initializer=tf.contrib.layers.xavier_initializer())
+        eta = tf.get_variable('eta', (), initializer=tf.constant_initializer(.01))
+        hebb_update = tf.get_variable('hebb_update', (3,3,target_shape[2],value_shape[3]), trainable=False,
+                                                     initializer=tf.zeros_initializer)
 
         if(target_shape[1]/value_shape[1]==2):
-            #0101
             new = tf.pad(new,tf.constant([[0,0],[1,0],[1,0],[0,0]]))
 
-        out = tf.nn.conv2d(input=new, filter=kernel, strides=[1, 1, 1, 1], padding='SAME')
+
+        new_hebb = eta * hebb_update  + hebb
+
+        #kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
+        x = tf.nn.conv2d_transpose(x, w + tf.multiply(alpha, new_hebb), tf.stack((value_shape[0],target_shape)), strides=[1,2,2,1], padding='SAME')
+        
+        #x = tf.nn.conv2d(input=inputs, filter=w + tf.multiply(alpha, new_hebb),
+                         #strides=[1, strides, strides, 1], padding='SAME') + b
+        
+        with tf.control_dependencies([x]):
+            _hebb = tf.assign(hebb, new_hebb)
+            update_ops.append(_hebb)
+
+        if batch_normalization:
+            x = tf.layers.batch_normalization(x)
+        if activation is not None:
+            x = activation(x)
+        
+        #upsample = tf.contrib.keras.layers.UpSampling2D(size=(strides, strides), data_format=None)
+        #y = upsample(x)
+        
+        y = tf.tanh(x)
+
+        y = tf.transpose(y, [1, 2, 0, 3])
+
+        # in_mod is the input padded a/c to prev. convolution
+        in_mod = tf.pad(new, [[0, 0], [int(np.floor((kernel_size - 1) / 2)), int(np.ceil((kernel_size - 1) / 2))], 
+                    [int(np.floor((kernel_size - 1) / 2)), int(np.ceil((kernel_size - 1) / 2))], [0, 0]])
+        in_mod = tf.tanh(in_mod)
+
+        in_mod = tf.transpose(in_mod, [3, 1, 2, 0])
+
+        hebb_new = tf.nn.conv2d(input=in_mod, filter=y, strides=([1] * 4), padding='VALID')
+        hebb_new = tf.transpose(hebb_new, [1, 2, 0, 3])
+        
+        shapex = tf.cast(tf.shape(x), tf.float32)
+        shapey = tf.cast(tf.shape(y), tf.float32)
+        hebb_new = hebb_new/(shapey[0] * shapey[1] * shapey[2]) - tf.reduce_mean(tf.square(x), axis=[0,1,2,3]) *hebb
+
+        hebb_ = tf.assign(hebb_update, hebb_new)
+
+        update_ops.append(hebb_)
+        
+    return x
+
+        #out = tf.nn.conv2d(input=new, filter=kernel, strides=[1, 1, 1, 1], padding='SAME')
 
     return out
 
@@ -96,19 +221,19 @@ def model(x, num_hidden=256):
     with tf.variable_scope('model', reuse=tf.AUTO_REUSE):
         x = tf.reshape(x, [-1,64,64,3])
         x = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), x)
-        x = conv_block(x, 'conv1', filters=16, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = hebb_conv_layer(x, 'conv1', update, filters=16, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
         x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
         sc1 = x # 32
-        x = conv_block(x, 'conv2', filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = hebb_conv_layer(x, 'conv2', update, filters=32, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
         x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
         sc2 = x # 16
-        x = conv_block(x, 'conv3', filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = hebb_conv_layer(x, 'conv3', update, filters=64, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
         x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
         sc3 = x # 8
-        x = conv_block(x, 'conv4', filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = hebb_conv_layer(x, 'conv4', update, filters=128, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
         x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
         sc4 = x # 4
-        x = conv_block(x, 'conv5', filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
+        x = hebb_conv_layer(x, 'conv5', update, filters=256, kernel_size=3, strides=1, activation=tf.nn.relu,batch_normalization=True)
         x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
         sc5 = x # 2
         x = tf.layers.average_pooling2d(x, pool_size=2, strides=2)
@@ -230,7 +355,7 @@ def train():
                     for j in range(input_data.shape[1]):
                         imgs[i][j] = cv2.imdecode(np.fromstring(input_data[i][j], dtype=np.uint8), -1)
                 batch_data = imgs                
-                ls,_,e = sess.run([loss, train_op, epoch], feed_dict={x:batch_data})
+                ls,_,e = sess.run([loss, train_op, epoch,update], feed_dict={x:batch_data})
                 if steps%10 == 0:
                     tf.logging.info("epoch: {} steps: {} loss: {}".format(e, steps, ls_sum/10))
                     ls_sum = 0
