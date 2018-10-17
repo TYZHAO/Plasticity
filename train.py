@@ -197,7 +197,7 @@ def hebb_transpose_conv(value, target_shape, name, update_ops):
         in_mod = tf.transpose(in_mod, [3, 1, 2, 0])
 
         hebb_new = tf.nn.conv2d(input=in_mod, filter=y, strides=([1] * 4), padding='VALID')
-        hebb_new = tf.transpose(hebb_new, [1, 2, 0, 3])
+        hebb_new = tf.transpose(hebb_new, [1, 2, 3, 0])
         
         shapex = tf.cast(tf.shape(x), tf.float32)
         shapey = tf.cast(tf.shape(y), tf.float32)
