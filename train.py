@@ -171,7 +171,7 @@ def hebb_transpose_conv(value, target_shape, name):
         new_hebb = eta * hebb_update  + hebb
 
         #kernel = tf.get_variable('k', (3,3,value_shape[3],target_shape[2]))
-        x = tf.nn.conv2d_transpose(x, w + tf.multiply(alpha, new_hebb), tf.stack((value_shape[0],target_shape)), strides=[1,2,2,1], padding='SAME')
+        x = tf.nn.conv2d_transpose(x, w + tf.multiply(alpha, new_hebb), (value_shape[0],)+target_shape, strides=[1,2,2,1], padding='SAME')
         
         #x = tf.nn.conv2d(input=inputs, filter=w + tf.multiply(alpha, new_hebb),
                          #strides=[1, strides, strides, 1], padding='SAME') + b
