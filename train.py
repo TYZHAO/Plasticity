@@ -105,7 +105,7 @@ def hebb_conv_layer(inputs, scope_name, update_ops, filters=16, kernel_size=3, s
     return x
 
 
-def hebb_transpose_conv(value, target_shape, name):
+def hebb_transpose_conv(value, target_shape, name, update_ops):
     #value --> [1,3,3,1] NHWC
     #target --> [1,5,5,1] NHWC
     kernel_size=3
@@ -260,11 +260,11 @@ def model(x, num_hidden=256):
         o = upsample(o)
         shape = tf.shape(o)
         
-        o = hebb_transpose_conv(tf.concat([o,sc5],-1),(4,4,128),"trans_0")
-        o = hebb_transpose_conv(tf.concat([o,sc4],-1),(8,8,64),"trans_1")
-        o = hebb_transpose_conv(tf.concat([o,sc3],-1),(16,16,32),"trans_2")
-        o = hebb_transpose_conv(tf.concat([o,sc2],-1),(32,32,16),"trans_3")
-        o = hebb_transpose_conv(tf.concat([o,sc1],-1),(64,64,3),"trans_4")
+        o = hebb_transpose_conv(tf.concat([o,sc5],-1),(4,4,128),"trans_0",update)
+        o = hebb_transpose_conv(tf.concat([o,sc4],-1),(8,8,64),"trans_1",update)
+        o = hebb_transpose_conv(tf.concat([o,sc3],-1),(16,16,32),"trans_2",update)
+        o = hebb_transpose_conv(tf.concat([o,sc2],-1),(32,32,16),"trans_3",update)
+        o = hebb_transpose_conv(tf.concat([o,sc1],-1),(64,64,3),"trans_4",update)
         
         '''
         kernel = tf.get_variable('k', (3,3,128,256*2))
