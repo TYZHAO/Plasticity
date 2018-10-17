@@ -72,8 +72,10 @@ def hebb_conv_layer(inputs, scope_name, update_ops, filters=16, kernel_size=3, s
             _hebb = tf.assign(hebb, new_hebb)
             update_ops.append(_hebb)
 
-
-        x = activation(x)
+        if batch_normalization:
+            x = tf.layers.batch_normalization(x)
+        if activation is not None:
+            x = activation(x)
         
         upsample = tf.contrib.keras.layers.UpSampling2D(size=(strides, strides), data_format=None)
         y = upsample(x)
@@ -178,10 +180,7 @@ def hebb_transpose_conv(value, target_shape, name, update_ops):
             _hebb = tf.assign(hebb, new_hebb)
             update_ops.append(_hebb)
 
-        if batch_normalization:
-            x = tf.layers.batch_normalization(x)
-        if activation is not None:
-            x = activation(x)
+        #x = activation(x)
         
         #upsample = tf.contrib.keras.layers.UpSampling2D(size=(strides, strides), data_format=None)
         #y = upsample(x)
