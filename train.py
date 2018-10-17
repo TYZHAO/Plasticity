@@ -18,6 +18,7 @@ maxepochs = 20
 clips = 10
 num_gpus = 1
 update = []
+plasticity = True
 
 def conv_block(inputs, scope_name, filters=16, kernel_size=3, strides=1, 
                 activation=tf.nn.relu,batch_normalization=True):
@@ -263,7 +264,7 @@ def model(x, num_hidden=256):
             o = hebb_transpose_conv(tf.concat([o,sc3],-1),(16,16,32),"trans_2",update)
             o = hebb_transpose_conv(tf.concat([o,sc2],-1),(32,32,16),"trans_3",update)
             o = hebb_transpose_conv(tf.concat([o,sc1],-1),(64,64,3),"trans_4",update)
-            
+
         else:
 
             x = tf.reshape(x, [-1,64,64,3])
