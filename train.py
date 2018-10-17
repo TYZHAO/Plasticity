@@ -259,14 +259,14 @@ def model(x, num_hidden=256):
         upsample = tf.keras.layers.UpSampling2D(size=(2,2))
         o = upsample(o)
         shape = tf.shape(o)
-        '''
+        
         o = hebb_transpose_conv(tf.concat([o,sc5],-1),(4,4,128),"trans_0")
         o = hebb_transpose_conv(tf.concat([o,sc4],-1),(8,8,64),"trans_1")
         o = hebb_transpose_conv(tf.concat([o,sc3],-1),(16,16,32),"trans_2")
         o = hebb_transpose_conv(tf.concat([o,sc2],-1),(32,32,16),"trans_3")
         o = hebb_transpose_conv(tf.concat([o,sc1],-1),(64,64,3),"trans_4")
-        '''
         
+        '''
         kernel = tf.get_variable('k', (3,3,128,256*2))
         o = tf.nn.conv2d_transpose(tf.concat([o,sc5],-1), kernel, tf.stack((shape[0],4,4,128)), strides=[1,2,2,1], padding='SAME')
         kerkernel = tf.get_variable('skr', (3,3,64,128*2))
@@ -277,7 +277,7 @@ def model(x, num_hidden=256):
         o = tf.nn.conv2d_transpose(tf.concat([o,sc2],-1), kerrrkernel, tf.stack((shape[0],32,32,16)), strides=[1,2,2,1], padding='SAME')
         kerrrrkernel = tf.get_variable('skrrrr', (3,3,3,16*2))
         o = tf.nn.conv2d_transpose(tf.concat([o,sc1],-1), kerrrrkernel, tf.stack((shape[0],64,64,3)), strides=[1,2,2,1], padding='SAME')
-        
+        '''
         o = tf.nn.sigmoid(o)*255
     return o
 
